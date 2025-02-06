@@ -21,21 +21,30 @@ import (
 // 此处会构建 /proc/self/exe init /bin/sh 这个命令
 // 因此执行，相当于再次执行 /proc/self/exe，利用 namespace 构建一个隔离的空间
 // init 又会触发 /proc/self/exe 中的  RunContainerInitProcess 逻辑，替换 1 号进程为 /bin/sh
-func NewParentProcess(tty bool, command string) *exec.Cmd {
-	// 注意此处
-	// 会在传入的 command 前新增一个 init 参数，也就是先回调用自身的 init 参数，然后再执行传入的命令 command
-	// init 会调用 RunContainerInitProcess 函数
-	args := []string{"init", command}
-	cmd := exec.Command("/proc/self/exe", args...)
-	log.Infof("Run command: %s", cmd)
+func NewParentProcess(tty bool) (*exec.Cmd, *os.File) {
+	/* 注意此处
+	   - 会在传入的 command 前新增一个 init 参数，也就是先回调用自身的 init 参数，然后再执行传入的命令 command
+	   - init 会调用 RunContainerInitProcess 函数
+	*/
+	// 创建匿名管道用于传递参数，将readPipe作为子进程的ExtraFiles，子进程从readPipe中读取参数
+	// 父进程中则通过writePipe将参数写入管道
+	readPipe, writePipe, err := os.Pipe()
+	if err != nil {
+		log.Errorf("New pipe error %v", err)
+		return nil, nil
+	}
+	cmd := exec.Command("/proc/self/exe", "init")
+	// 通过 namespace 机制，将 init 进程构建为隔离的空间
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags: syscall.CLONE_NEWUTS | syscall.CLONE_NEWPID | syscall.CLONE_NEWNS |
 			syscall.CLONE_NEWNET | syscall.CLONE_NEWIPC,
 	}
+	// 若 mydocker run 配置 -it 参数，会开启此部分，用于将容器进程的输入输出展示到终端上
 	if tty {
 		cmd.Stdin = os.Stdin
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 	}
-	return cmd
+	cmd.ExtraFiles = []*os.File{readPipe}
+	return cmd, writePipe
 }

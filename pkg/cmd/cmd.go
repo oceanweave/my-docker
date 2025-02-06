@@ -28,8 +28,9 @@ var RunCommand = cli.Command{
 		if len(ctx.Args()) < 1 {
 			return fmt.Errorf("Missing container command")
 		}
-		cmd := ctx.Args().Get(0)
+		cmd := ctx.Args()
 		log.Infof("Run comand args[0]: %s", cmd)
+		// 更具 -it flag 判断是否需要开启  输入输出重定向到终端
 		tty := ctx.Bool("it")
 		container.Run(tty, cmd)
 		return nil
