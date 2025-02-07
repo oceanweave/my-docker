@@ -45,6 +45,8 @@ func NewParentProcess(tty bool) (*exec.Cmd, *os.File) {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 	}
+	// 默认 0 标准输入  1 标准输出  2 标准错误
+	// 因此此处 3——匿名管道
 	cmd.ExtraFiles = []*os.File{readPipe}
 	return cmd, writePipe
 }

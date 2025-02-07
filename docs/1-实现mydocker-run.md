@@ -59,3 +59,41 @@
 - 这种通道是单向的，即数据只能在一个方向上流动。
 - 当管道被写满时，写进程就会被阻塞，直到有读进程把管道的内容读出来。
 - 同样地，当读进程从管道内拿数据的时候，如果这时管道的内容是空的，那么读进程同样会被阻塞，一直等到有写进程向管道内写数据。
+
+
+
+## 3. 优化用户输入（简短命令）
+
+- 支持用户输入 sh，而不是完全路径 /bin/sh
+  - 原理 —— 在 PATH 环境变量中，搜索 sh 来知晓完全路径
+
+``` sh
+cmdPath, err := exec.LookPath(cmdArray[0])
+```
+
+
+
+
+
+## 4. 配置容器资源限制
+
+![配置容器资源限制](imgs/1-实现mydocker-run/配置容器资源限制.png)
+
+- 1）解析命令行参数，取到 Cgroups 相关参数
+  - 比如 -mem 100m 表示把内存限制到 100m
+  - 又比如 -cpu 20 表示把 cpu 限制在 20%
+- 2）根据参数，创建对应 Cgroups 并配置对应的 subsystem，最后把 fork 出来的子进程 pid 加入到这个 Cgroups 中即可。
+  - 1）创建 Cgroups
+    - 根据 `/proc/self/mountinfo` 中的信息，搜索对应资源的挂载点，如（memory）对应 /sys/fs/cgroup/memory
+    - 之后在此路径下创建负责管控容器进程的 Cgroup，如  /sys/fs/cgroup/memory/mydocker-cgroup
+  - 2）配置 subsystem
+    - 将 init 进程 PID（也是容器进程，因为后续容器进程会替换 init 进程运行文件，但继承其 PID)，写入到 Cgroup 对应的 tasks 文件中，用于限制后续限制该进程
+    - 将资源限额写入到 Cgroup 对应的文件中，如 memory 对应 memory.limit_in_bytes
+- 3）子进程(容器)结束时删除对应的 Cgroup
+
+几个重要的点如下：
+
+- 1）找到 cgroup 挂载路径：根据 `/proc/self/mountinfo` 中的信息，按规则解析得到 cgroup 挂载路径
+- 2）各个 Subsystem 的实现：使用 Go 实现 Cgroups 配置
+  - 在指定位置创建目录
+  - 往对应文件写入配置等
