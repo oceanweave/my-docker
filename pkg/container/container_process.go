@@ -48,5 +48,11 @@ func NewParentProcess(tty bool) (*exec.Cmd, *os.File) {
 	// 默认 0 标准输入  1 标准输出  2 标准错误
 	// 因此此处 3——匿名管道
 	cmd.ExtraFiles = []*os.File{readPipe}
+
+	// 配置 init cmd 的工作目录为 /root/busybox，这样 init 执行时通过 pwd 获取到此目录，就会进行 rootfs 的替换
+	// 此处相当于后续将，根目录替换为 busybox 文件系统
+	// cmd.Dir = "/root/busybox"
+	// 注意该目录的配置，应该为 宿主机上的位置， 进入放置 busybox 的目录， pwd 查看
+	cmd.Dir = "/media/psf/my-docker/busybox"
 	return cmd, writePipe
 }

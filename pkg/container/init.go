@@ -20,7 +20,9 @@ const fdIndex = 3
 */
 func RunContainerInitProcess(command string, args []string) error {
 	log.Infof("Init command: %s", command)
-	mountProc()
+	// 此处涵盖了 mountProc 所以将其进行了注释
+	setUpMount()
+	//mountProc()
 	// 从 pipe 中读取命令
 	cmdArray := readUserCommand()
 	if len(cmdArray) == 0 {
@@ -57,8 +59,8 @@ func mountProc() {
 	// MS_NODEV 这个参数是自 从 Linux 2.4 以来 ，所有 mount 的系统都会默认设定的参数。
 	defaultMountFlags := syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NODEV
 	// bug修复 —— 修复下面的bug
-	// systemd 加入linux之后, mount namespace 就变成 shared by default, 所以你必须显示
-	//	声明你要这个新的mount namespace独立。
+	// systemd 加入linux之后, mount namespace 就变成 shared by default, 所以你必须
+	//	显示声明你要这个新的mount namespace独立。
 	syscall.Mount("", "/", "", syscall.MS_PRIVATE|syscall.MS_REC, "")
 	// bug: 未加上面的代码，再次执行 my-docker 会提示 宿主机 proc 文件受损，应手动执行 mount -t proc proc /proc 进行修复
 	_ = syscall.Mount("proc", "/proc", "proc", uintptr(defaultMountFlags), "")
