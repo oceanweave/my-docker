@@ -1,6 +1,7 @@
 package container
 
 import (
+	"github.com/oceanweave/my-docker/pkg/cglimit/types"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"os/exec"
@@ -53,6 +54,12 @@ func NewParentProcess(tty bool) (*exec.Cmd, *os.File) {
 	// 此处相当于后续将，根目录替换为 busybox 文件系统
 	// cmd.Dir = "/root/busybox"
 	// 注意该目录的配置，应该为 宿主机上的位置， 进入放置 busybox 的目录， pwd 查看
-	cmd.Dir = "/media/psf/my-docker/busybox"
+	// cmd.Dir = "/media/psf/my-docker/busybox"
+	// 将上面改为了 overlayfs 形式，指定 rootURL 获取镜像层并创建容器层，联合挂载到 mntURL 目录，然后挂到容器中，作为 rootfs
+	rootURL := types.RootURL
+	mntURL := types.MntURL
+	NewWorkSpace(rootURL, mntURL)
+	cmd.Dir = mntURL
+
 	return cmd, writePipe
 }

@@ -25,10 +25,13 @@ func main() {
 		// Log as JSON instead of the default ASCII formatter.
 		log.SetFormatter(&log.JSONFormatter{})
 		log.SetOutput(os.Stdout)
+		// 设置日志级别为 Debug，不设置的话，默认为 INFO 级别，Debug 日志将不会打印出来
+		log.SetLevel(log.DebugLevel)
 		return nil
 	}
 
 	if err := app.Run(os.Args); err != nil {
 		log.Fatal(err)
 	}
+
 }

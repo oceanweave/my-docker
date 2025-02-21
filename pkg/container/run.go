@@ -46,6 +46,9 @@ func Run(tty bool, cmdArray []string, res *resource.ResourceConfig) {
 	// 4. 等待 init 结束
 	_ = parent.Wait()
 	log.Infof("container process stoped ！！！")
+	rootURL := resource.RootURL
+	mntURL := resource.MntURL
+	defer DeleteWorkSpace(rootURL, mntURL)
 	//os.Exit(-1)
 }
 

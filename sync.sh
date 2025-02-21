@@ -1,0 +1,1 @@
+rsync -av --delete /media/psf/my-docker/ /go-code/my-docker/
