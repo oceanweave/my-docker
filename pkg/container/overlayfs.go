@@ -13,11 +13,22 @@ import (
 	1. 利用镜像包创建只读层
 	2. 创建读写层
 	3. 对上面两层进行联合挂载，形成 mntURL 挂载点
+	- 这里的 rootPath 指的是宿主机上的某个目录，后续将会在该目录创建 overlayfs 的 upper、work、merged 目录
+		因此可以将该目录称之为 overlayfs 的 rootPath
 */
-func NewWorkSpace(rootPath, mntURL string) {
+func NewWorkSpace(rootPath, mntURL, volume string) {
 	createReadOnlyLayer(rootPath)
 	createWriteLayer(rootPath)
 	createMountPoint(rootPath, mntURL)
+
+	// 如果制定了 volume 则还需要 mount volume
+	if volume != "" {
+		hostPath, containerPath, err := volumeUrlExtract(volume)
+		if err != nil {
+			log.Errorf("extract volume failed, maybe volume ")
+		}
+		mountVolume(mntURL, hostPath, containerPath)
+	}
 }
 
 // createLower 将busybox作为overlayfs的lower层(也就是容器的只读层）
@@ -108,8 +119,19 @@ func createMountPoint(rootURL string, mntURL string) {
 	}
 }
 
-func DeleteWorkSpace(rootURL string, mntURL string) {
+// DeleteWorkSpace 清理容器的 overlayfs 相关目录和 volume 相关目录
+func DeleteWorkSpace(rootURL string, mntURL string, volume string) {
 	log.Debugf("Remove container overlayfs mountPoint and writeLayer.")
+	// 如果指定了 volume 则需要 umount volume
+	// 重点 Note： 一定要先 umount volume，然后再删除目录，否则由于 bind mount 存在，删除临时目录会导致 volume 目录中的数据丢失
+	if volume != "" {
+		_, containerPath, err := volumeUrlExtract(volume)
+		if err != nil {
+			log.Errorf("extract volume failed, maybe volume parameter input is not correct, detail: %v", err)
+			return
+		}
+		umountVolume(mntURL, containerPath)
+	}
 	DeleteMountPoint(mntURL)
 	DeleteWriteLayer(rootURL)
 }

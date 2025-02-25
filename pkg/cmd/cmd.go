@@ -30,6 +30,10 @@ var RunCommand = cli.Command{
 			Name:  "cpuset",
 			Usage: "cpuset limit, e.g.: -cpuset 2,4", // 应该是绑核，将其绑定到哪个核上
 		},
+		cli.StringFlag{ // 数据卷
+			Name:  "v",
+			Usage: "volume, e.g.: -v /etc/conf:/etc/conf",
+		},
 	},
 	/*
 		这里是 run 命令执行的真正函数
@@ -51,7 +55,8 @@ var RunCommand = cli.Command{
 			CpuCfsQuota: ctx.Int("cpu"),
 		}
 		log.Info("resConf:", resConf)
-		container.Run(tty, cmd, resConf)
+		volume := ctx.String("v")
+		container.Run(tty, cmd, resConf, volume)
 		return nil
 	},
 }

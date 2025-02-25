@@ -3,6 +3,7 @@ package container
 import (
 	"github.com/oceanweave/my-docker/pkg/cglimit"
 	resource "github.com/oceanweave/my-docker/pkg/cglimit/types"
+	"github.com/oceanweave/my-docker/pkg/constant"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"strings"
@@ -12,13 +13,13 @@ import (
 // run（my-docker run -it 用户参数，用户参数匿名管道发送端; 为此进程配置 cgroup 限制本身及所有衍生子进程的资源）
 // --> init（隐式逻辑，/proc/self/exe init 等同于 my-docker init，用户参数匿名管道接收端，利用用户参数启动容器进程)
 // --> 容器进程（用户输入的参数）
-func Run(tty bool, cmdArray []string, res *resource.ResourceConfig) {
+func Run(tty bool, cmdArray []string, res *resource.ResourceConfig, volume string) {
 	// 1. 构建 init 命令，得到匿名管道写入端
 	// 构建出 init 命令，将匿名管道 read 端放到 init 命令中，同时为 init 命令配置 namespace 和重定向等参数
 	// parent 就是 init 命令，也就是容器父进程；run 进程是 init 的父进程
 	// 此处返回的匿名管道 write 部分，是为了 run 进程将用户参数传递给 init 进程，从而启动真正的容器进程
 	//（采用管道传输用户参数，是为了避免用户传输的参数过长）
-	parent, writePipe := NewParentProcess(tty)
+	parent, writePipe := NewParentProcess(tty, volume)
 	if parent == nil {
 		log.Errorf("New parent process error")
 		return
@@ -46,9 +47,9 @@ func Run(tty bool, cmdArray []string, res *resource.ResourceConfig) {
 	// 4. 等待 init 结束
 	_ = parent.Wait()
 	log.Infof("container process stoped ！！！")
-	rootURL := resource.RootURL
-	mntURL := resource.MntURL
-	defer DeleteWorkSpace(rootURL, mntURL)
+	rootURL := constant.OverlayfsRootURL
+	mntURL := constant.OverlayMergedURL
+	DeleteWorkSpace(rootURL, mntURL, volume)
 	//os.Exit(-1)
 }
 
