@@ -1,4 +1,4 @@
-package container
+package image
 
 import (
 	"github.com/oceanweave/my-docker/pkg/util"

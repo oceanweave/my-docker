@@ -4,6 +4,7 @@ import (
 	"github.com/oceanweave/my-docker/pkg/cglimit"
 	resource "github.com/oceanweave/my-docker/pkg/cglimit/types"
 	"github.com/oceanweave/my-docker/pkg/constant"
+	"github.com/oceanweave/my-docker/pkg/image"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"strings"
@@ -49,7 +50,7 @@ func Run(tty bool, cmdArray []string, res *resource.ResourceConfig, volume strin
 	log.Infof("container process stoped ！！！")
 	rootURL := constant.OverlayfsRootURL
 	mntURL := constant.OverlayMergedURL
-	DeleteWorkSpace(rootURL, mntURL, volume)
+	image.DeleteWorkSpace(rootURL, mntURL, volume)
 	//os.Exit(-1)
 }
 

@@ -2,6 +2,7 @@ package container
 
 import (
 	"github.com/oceanweave/my-docker/pkg/constant"
+	"github.com/oceanweave/my-docker/pkg/image"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"os/exec"
@@ -58,7 +59,7 @@ func NewParentProcess(tty bool, volume string) (*exec.Cmd, *os.File) {
 	// 将上面改为了 overlayfs 形式，指定 rootURL 获取镜像层并创建容器层，联合挂载到 mntURL 目录，然后挂到容器中，作为 rootfs
 	rootURL := constant.OverlayfsRootURL
 	mntURL := constant.OverlayMergedURL
-	NewWorkSpace(rootURL, mntURL, volume)
+	image.NewWorkSpace(rootURL, mntURL, volume)
 	cmd.Dir = mntURL
 
 	return cmd, writePipe
