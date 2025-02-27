@@ -10,4 +10,5 @@ const (
 	OverlayfsRootURL string = "/go-code/my-docker/"
 	// 将 /go-code/my-docker/mnt 改为 /go-code/my-docker/merged 更好理解，其为 overlayfs 的最终目录，也就是容器的 rootfs
 	OverlayMergedURL string = "/go-code/my-docker/merged"
+	ImageTarPath     string = "/go-code/my-docker/imagetar/"
 )
