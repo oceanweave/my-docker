@@ -34,6 +34,10 @@ var RunCommand = cli.Command{
 			Name:  "v",
 			Usage: "volume, e.g.: -v /etc/conf:/etc/conf",
 		},
+		cli.BoolFlag{
+			Name:  "d",
+			Usage: "detach container",
+		},
 	},
 	/*
 		这里是 run 命令执行的真正函数
@@ -45,18 +49,30 @@ var RunCommand = cli.Command{
 		if len(ctx.Args()) < 1 {
 			return fmt.Errorf("Missing container command")
 		}
-		cmd := ctx.Args()
-		log.Infof("Run comand args[0]: %s", cmd)
-		// 更具 -it flag 判断是否需要开启  输入输出重定向到终端
+
+		var cmdArray []string
+		cmdArray = ctx.Args()
+		log.Infof("Run comand args[0]: %s", cmdArray)
+
+		// tty 和 detach 只能同时生效一个
+		// 根据 -it flag 判断是否需要开启  输入输出重定向到终端
 		tty := ctx.Bool("it")
+		detach := ctx.Bool("d")
+		if tty && detach {
+			return fmt.Errorf("it and d parameter can not both provided")
+		}
+
+		// 获取容器启动的资源配置 mem、cpuset、cpu 等
 		resConf := &resource.ResourceConfig{
 			MemoryLimit: ctx.String("mem"),
 			CpuSet:      ctx.String("cpuset"),
 			CpuCfsQuota: ctx.Int("cpu"),
 		}
 		log.Info("resConf:", resConf)
+
+		// 获取容器的挂载卷配置
 		volume := ctx.String("v")
-		container.Run(tty, cmd, resConf, volume)
+		container.Run(tty, cmdArray, resConf, volume)
 		return nil
 	},
 }
