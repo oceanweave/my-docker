@@ -11,21 +11,22 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"text/tabwriter"
 	"time"
 )
 
 const (
-	RUNNING        = "running"
-	STOP           = "stopped"
-	EXIT           = "exited"
-	InfoPath       = "/var/lib/mydocker/containers/"
-	InfoPathFormat = InfoPath + "%s/"
-	ConfigName     = "config.json"
-	IDLength       = 10
-	LogFile        = "%s-json.log"
+	RUNNING                 = "running"
+	STOP                    = "stopped"
+	EXIT                    = "exited"
+	ContainersInfoPath      = "/var/lib/mydocker/containers/"
+	ContainerInfoPathFormat = ContainersInfoPath + "%s/"
+	ConfigName              = "config.json"
+	IDLength                = 10
+	LogFile                 = "%s-json.log"
 )
 
-type Info struct {
+type ContainerInfo struct {
 	Pid         string `json:"pid"`
 	Id          string `json:"id"`
 	Name        string `json:"name"`
@@ -55,7 +56,7 @@ func RecordContainerInfo(containerPID int, cmdArray []string, containerName, con
 		containerName = containerId
 	}
 	command := strings.Join(cmdArray, "")
-	containerInfo := &Info{
+	containerInfo := &ContainerInfo{
 		Id:          containerId,
 		Pid:         strconv.Itoa(containerPID),
 		Command:     command,
@@ -71,7 +72,7 @@ func RecordContainerInfo(containerPID int, cmdArray []string, containerName, con
 	jsonStr := string(jsonBytes)
 	// 持久化存储到宿主机上
 	// 拼接出存储容器信息文件的路径，如果目录不存在则级联创建
-	dirPath := fmt.Sprintf(InfoPathFormat, containerId)
+	dirPath := fmt.Sprintf(ContainerInfoPathFormat, containerId)
 	if err := os.MkdirAll(dirPath, constant.Perm0622); err != nil {
 		return errors.WithMessagef(err, "mkdir %s failed", dirPath)
 	}
@@ -90,8 +91,67 @@ func RecordContainerInfo(containerPID int, cmdArray []string, containerName, con
 }
 
 func DeleteContainerInfo(containerID string) {
-	dirPath := fmt.Sprintf(InfoPathFormat, containerID)
+	dirPath := fmt.Sprintf(ContainerInfoPathFormat, containerID)
 	if err := os.RemoveAll(dirPath); err != nil {
 		log.Errorf("Remove dir %s error %v", dirPath, err)
 	}
+}
+
+func ListContainers() {
+	// 读取存放容器信息目录下的所有文件
+	files, err := os.ReadDir(ContainersInfoPath)
+	if err != nil {
+		log.Errorf("read dir %s error %v", ContainersInfoPath, err)
+		return
+	}
+	containersInfo := make([]*ContainerInfo, 0, len(files))
+	for _, file := range files {
+		tmpContainerInfo, err := getContainerInfo(file)
+		if err != nil {
+			log.Errorf("get container info error %v", err)
+			continue
+		}
+		containersInfo = append(containersInfo, tmpContainerInfo)
+	}
+	// 使用 tabwriter.NewWriter 在控制台打印出容器信息
+	// tabwriter 是引用的 text/tabwriter 类库，用于在控制台打印对齐的表格
+	w := tabwriter.NewWriter(os.Stdout, 12, 1, 3, ' ', 0)
+	_, err = fmt.Fprint(w, "ID\tNAME\tPID\tSTATUS\tCOMMAND\tCREATED\n")
+	if err != nil {
+		log.Errorf("Fprint error %v", err)
+	}
+	for _, item := range containersInfo {
+		_, err = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+			item.Id,
+			item.Name,
+			item.Pid,
+			item.Status,
+			item.Command,
+			item.CreatedTime)
+		if err != nil {
+			log.Errorf("Fprint error %v", err)
+		}
+	}
+	if err = w.Flush(); err != nil {
+		log.Errorf("Flush error %v", err)
+	}
+}
+
+// getContainerInfo 从宿主机上容器 config.json 文件中解析出容器信息
+func getContainerInfo(file os.DirEntry) (*ContainerInfo, error) {
+	// 根据文件名拼接出完整路径
+	configFileDir := fmt.Sprintf(ContainerInfoPathFormat, file.Name())
+	configFileDir = path.Join(configFileDir, ConfigName)
+	// 读取容器配置文件
+	content, err := os.ReadFile(configFileDir)
+	if err != nil {
+		log.Errorf("read file %s error %v", configFileDir, err)
+		return nil, err
+	}
+	info := new(ContainerInfo)
+	if err = json.Unmarshal(content, info); err != nil {
+		log.Errorf("json unmarshal error %v", err)
+		return nil, err
+	}
+	return info, nil
 }
