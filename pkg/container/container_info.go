@@ -33,6 +33,7 @@ type ContainerInfo struct {
 	Command     string `json:"command"`
 	CreatedTime string `json:"createdTime"`
 	Status      string `json:"status"`
+	Volume      string `json:"volume"`
 }
 
 func GenerateContainerID() string {
@@ -50,7 +51,7 @@ func randStringsBytes(n int) string {
 	return string(b)
 }
 
-func RecordContainerInfo(containerPID int, cmdArray []string, containerName, containerId string) error {
+func RecordContainerInfo(containerPID int, cmdArray []string, containerName, containerId string, volume string) error {
 	// 如果未指定容器名，则使用随机生成的 containerID
 	if containerName == "" {
 		containerName = containerId
@@ -121,13 +122,14 @@ func ListContainers() {
 		log.Errorf("Fprint error %v", err)
 	}
 	for _, item := range containersInfo {
-		_, err = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+		_, err = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 			item.Id,
 			item.Name,
 			item.Pid,
 			item.Status,
 			item.Command,
-			item.CreatedTime)
+			item.CreatedTime,
+			item.Volume)
 		if err != nil {
 			log.Errorf("Fprint error %v", err)
 		}
@@ -154,4 +156,29 @@ func getContainerInfo(file os.DirEntry) (*ContainerInfo, error) {
 		return nil, err
 	}
 	return info, nil
+}
+
+func getInfoByContainerId(containerId string) (*ContainerInfo, error) {
+	dirPath := fmt.Sprintf(ContainerInfoPathFormat, containerId)
+	configFilePath := path.Join(dirPath, ConfigName)
+	log.Debugf("Container json file path: %v", configFilePath)
+	contentBytes, err := os.ReadFile(configFilePath)
+	if err != nil {
+		return nil, errors.Wrapf(err, "read file %s", configFilePath)
+	}
+	/*
+		此种写法错误：
+		- 声明 var containerInfo *ContainerInfo 时，它是 nil 指针。
+		- json.Unmarshal(nil, nil) 无法解析 JSON，会报错 "Unmarshal(nil *ContainerInfo)"。
+		- 修复方法：初始化 ContainerInfo 结构体，确保 Unmarshal 能正确解析
+	*/
+	//var containerInfo *ContainerInfo
+	//if err = json.Unmarshal(contentBytes, containerInfo); err != nil {
+	//	return nil, err
+	//}
+	var containerInfo ContainerInfo
+	if err = json.Unmarshal(contentBytes, &containerInfo); err != nil {
+		return nil, err
+	}
+	return &containerInfo, nil
 }
