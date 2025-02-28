@@ -33,6 +33,7 @@ type ContainerInfo struct {
 	Command     string `json:"command"`
 	CreatedTime string `json:"createdTime"`
 	Status      string `json:"status"`
+	Volume      string `json:"volume"`
 }
 
 func GenerateContainerID() string {
@@ -50,7 +51,7 @@ func randStringsBytes(n int) string {
 	return string(b)
 }
 
-func RecordContainerInfo(containerPID int, cmdArray []string, containerName, containerId string) error {
+func RecordContainerInfo(containerPID int, cmdArray []string, containerName, containerId, volume string) error {
 	// 如果未指定容器名，则使用随机生成的 containerID
 	if containerName == "" {
 		containerName = containerId
@@ -63,6 +64,7 @@ func RecordContainerInfo(containerPID int, cmdArray []string, containerName, con
 		CreatedTime: time.Now().Format("2006-01-02 15:04:05"),
 		Status:      RUNNING,
 		Name:        containerName,
+		Volume:      volume,
 	}
 
 	jsonBytes, err := json.Marshal(containerInfo)
@@ -116,18 +118,19 @@ func ListContainers() {
 	// 使用 tabwriter.NewWriter 在控制台打印出容器信息
 	// tabwriter 是引用的 text/tabwriter 类库，用于在控制台打印对齐的表格
 	w := tabwriter.NewWriter(os.Stdout, 12, 1, 3, ' ', 0)
-	_, err = fmt.Fprint(w, "ID\tNAME\tPID\tSTATUS\tCOMMAND\tCREATED\n")
+	_, err = fmt.Fprint(w, "ID\tNAME\tPID\tSTATUS\tCOMMAND\tCREATED\tVolume\n")
 	if err != nil {
 		log.Errorf("Fprint error %v", err)
 	}
 	for _, item := range containersInfo {
-		_, err = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+		_, err = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 			item.Id,
 			item.Name,
 			item.Pid,
 			item.Status,
 			item.Command,
-			item.CreatedTime)
+			item.CreatedTime,
+			item.Volume)
 		if err != nil {
 			log.Errorf("Fprint error %v", err)
 		}

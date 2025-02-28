@@ -120,6 +120,7 @@ func createMountPoint(rootURL string, mntURL string) {
 }
 
 // DeleteWorkSpace 清理容器的 overlayfs 相关目录和 volume 相关目录
+// rootURL 指的是 overlayfs 目录， mntURL 指的是 overlayfs 的 merged 目录
 func DeleteWorkSpace(rootURL string, mntURL string, volume string) {
 	log.Debugf("Remove container overlayfs mountPoint and writeLayer.")
 	// 如果指定了 volume 则需要 umount volume

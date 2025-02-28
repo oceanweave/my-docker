@@ -33,7 +33,7 @@ func Run(tty bool, cmdArray []string, res *resource.ResourceConfig, volume strin
 	// 创建容器 id，并持久化到宿主机上指定文件中
 	containerId := GenerateContainerID()
 	log.Debugf("Current containerID is [%s]", containerId)
-	err := RecordContainerInfo(parent.Process.Pid, cmdArray, containerName, containerId)
+	err := RecordContainerInfo(parent.Process.Pid, cmdArray, containerName, containerId, volume)
 	if err != nil {
 		log.Errorf("Record container info error %v", err)
 		return
