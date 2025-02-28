@@ -38,6 +38,10 @@ var RunCommand = cli.Command{
 			Name:  "d",
 			Usage: "detach container",
 		},
+		cli.StringFlag{
+			Name:  "name",
+			Usage: "container name",
+		},
 	},
 	/*
 		这里是 run 命令执行的真正函数
@@ -72,7 +76,12 @@ var RunCommand = cli.Command{
 
 		// 获取容器的挂载卷配置
 		volume := ctx.String("v")
-		container.Run(tty, cmdArray, resConf, volume)
+
+		// 获取容器的 name
+		containerName := ctx.String("name")
+
+		// 创建容器
+		container.Run(tty, cmdArray, resConf, volume, containerName)
 		return nil
 	},
 }

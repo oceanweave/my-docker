@@ -14,7 +14,7 @@ import (
 // run（my-docker run -it 用户参数，用户参数匿名管道发送端; 为此进程配置 cgroup 限制本身及所有衍生子进程的资源）
 // --> init（隐式逻辑，/proc/self/exe init 等同于 my-docker init，用户参数匿名管道接收端，利用用户参数启动容器进程)
 // --> 容器进程（用户输入的参数）
-func Run(tty bool, cmdArray []string, res *resource.ResourceConfig, volume string) {
+func Run(tty bool, cmdArray []string, res *resource.ResourceConfig, volume string, containerName string) {
 	// 1. 构建 init 命令，得到匿名管道写入端
 	// 构建出 init 命令，将匿名管道 read 端放到 init 命令中，同时为 init 命令配置 namespace 和重定向等参数
 	// parent 就是 init 命令，也就是容器父进程；run 进程是 init 的父进程
@@ -25,9 +25,18 @@ func Run(tty bool, cmdArray []string, res *resource.ResourceConfig, volume strin
 		log.Errorf("New parent process error")
 		return
 	}
-	// 执行 init 命令，也就是准备创建容器进程
+	// 执行 init 命令，init 命令会创建容器进程，此处是实现容器进程的运行
 	if err := parent.Start(); err != nil {
 		log.Error(err)
+	}
+
+	// 创建容器 id，并持久化到宿主机上指定文件中
+	containerId := GenerateContainerID()
+	log.Debugf("Current containerID is [%s]", containerId)
+	err := RecordContainerInfo(parent.Process.Pid, cmdArray, containerName, containerId)
+	if err != nil {
+		log.Errorf("Record container info error %v", err)
+		return
 	}
 
 	// 2. 根据资源配置，创建 cgroup 目录并设置对应的配额限制
@@ -61,6 +70,7 @@ func Run(tty bool, cmdArray []string, res *resource.ResourceConfig, volume strin
 		rootURL := constant.OverlayfsRootURL
 		mntURL := constant.OverlayMergedURL
 		image.DeleteWorkSpace(rootURL, mntURL, volume)
+		DeleteContainerInfo(containerId)
 		log.Infof("Finsh Container Resource Clean.")
 	}
 	// 4.2 容器进程 detach，若没开启 tty，my-docker 主进程会结束，容器进程会被【宿主机上的1号进程】纳管（在宿主机上执行 ps -ef 或 pstree -pl 可查看到）
