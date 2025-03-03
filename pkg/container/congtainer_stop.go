@@ -42,4 +42,5 @@ func StopContainer(containerId string) {
 	if err := os.WriteFile(configFilePath, newContentBytes, constant.Perm0622); err != nil {
 		log.Errorf("Write file %s error: %v", configFilePath, err)
 	}
+	log.Infof("Finsh stop container-[%s]", containerId)
 }

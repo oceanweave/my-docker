@@ -44,3 +44,16 @@ var RemoveCommand = cli.Command{
 		return nil
 	},
 }
+
+var LogCommannd = cli.Command{
+	Name:  "logs",
+	Usage: "print logs of a container",
+	Action: func(ctx *cli.Context) error {
+		if len(ctx.Args()) < 1 {
+			return fmt.Errorf("please input your container name")
+		}
+		containerId := ctx.Args().Get(0)
+		container.LogContainer(containerId)
+		return nil
+	},
+}

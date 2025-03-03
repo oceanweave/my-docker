@@ -23,7 +23,7 @@ const (
 	ContainerInfoPathFormat = ContainersInfoPath + "%s/"
 	ConfigName              = "config.json"
 	IDLength                = 10
-	LogFile                 = "%s-json.log"
+	LogFile                 = "log.txt"
 )
 
 type ContainerInfo struct {
@@ -117,7 +117,7 @@ func ListContainers() {
 	// 使用 tabwriter.NewWriter 在控制台打印出容器信息
 	// tabwriter 是引用的 text/tabwriter 类库，用于在控制台打印对齐的表格
 	w := tabwriter.NewWriter(os.Stdout, 12, 1, 3, ' ', 0)
-	_, err = fmt.Fprint(w, "ID\tNAME\tPID\tSTATUS\tCOMMAND\tCREATED\n")
+	_, err = fmt.Fprint(w, "ID\tNAME\tPID\tSTATUS\tCOMMAND\tCREATED\tVolume\n")
 	if err != nil {
 		log.Errorf("Fprint error %v", err)
 	}

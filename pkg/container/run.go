@@ -15,12 +15,16 @@ import (
 // --> init（隐式逻辑，/proc/self/exe init 等同于 my-docker init，用户参数匿名管道接收端，利用用户参数启动容器进程)
 // --> 容器进程（用户输入的参数）
 func Run(tty bool, cmdArray []string, res *resource.ResourceConfig, volume string, containerName string) {
+	// 0. 创建容器 id
+	containerId := GenerateContainerID()
+	log.Debugf("Current containerID is [%s]", containerId)
+
 	// 1. 构建 init 命令，得到匿名管道写入端
 	// 构建出 init 命令，将匿名管道 read 端放到 init 命令中，同时为 init 命令配置 namespace 和重定向等参数
 	// parent 就是 init 命令，也就是容器父进程；run 进程是 init 的父进程
 	// 此处返回的匿名管道 write 部分，是为了 run 进程将用户参数传递给 init 进程，从而启动真正的容器进程
 	//（采用管道传输用户参数，是为了避免用户传输的参数过长）
-	parent, writePipe := NewParentProcess(tty, volume)
+	parent, writePipe := NewParentProcess(tty, volume, containerId)
 	if parent == nil {
 		log.Errorf("New parent process error")
 		return
@@ -30,9 +34,7 @@ func Run(tty bool, cmdArray []string, res *resource.ResourceConfig, volume strin
 		log.Error(err)
 	}
 
-	// 创建容器 id，并持久化到宿主机上指定文件中
-	containerId := GenerateContainerID()
-	log.Debugf("Current containerID is [%s]", containerId)
+	// 持久化容器信息到宿主机上指定的 json 文件中
 	err := RecordContainerInfo(parent.Process.Pid, cmdArray, containerName, containerId, volume)
 	if err != nil {
 		log.Errorf("Record container info error %v", err)
