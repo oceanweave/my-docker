@@ -3,7 +3,9 @@ package cmd
 import (
 	"fmt"
 	"github.com/oceanweave/my-docker/pkg/container"
+	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
+	"os"
 )
 
 var ListCommand = cli.Command{
@@ -54,6 +56,30 @@ var LogCommannd = cli.Command{
 		}
 		containerId := ctx.Args().Get(0)
 		container.LogContainer(containerId)
+		return nil
+	},
+}
+
+var ExecCommand = cli.Command{
+	Name:  "exec",
+	Usage: "exec a command into container",
+	Action: func(ctx *cli.Context) error {
+		// 如果环境变量存在，说明 C 代码已经运行过了，即 setns 系统调用已经执行了，这里就直接返回，避免重复执行
+		if os.Getenv(container.EnvExecPid) != "" {
+			log.Infof("pid callback pid %v", os.Getpid())
+			return nil
+		}
+		// 格式: mydocker exec 容器名称 命令， 因此至少会有两个参数
+		if len(ctx.Args()) < 2 {
+			return fmt.Errorf("missing container name or command")
+		}
+		containerId := ctx.Args().Get(0)
+		// 将除了容器名之外的参数作为命令部分
+		var commandArray []string
+		for _, arg := range ctx.Args().Tail() {
+			commandArray = append(commandArray, arg)
+		}
+		container.ExecContainer(containerId, commandArray)
 		return nil
 	},
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/oceanweave/my-docker/pkg/cmd"
+	_ "github.com/oceanweave/my-docker/pkg/nsenter"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 	"os"
@@ -24,6 +25,7 @@ func main() {
 		cmd.StopCommand,
 		cmd.RemoveCommand,
 		cmd.LogCommannd,
+		cmd.ExecCommand,
 	}
 
 	app.Before = func(context *cli.Context) error {

@@ -182,3 +182,19 @@ func getInfoByContainerId(containerId string) (*ContainerInfo, error) {
 	}
 	return &containerInfo, nil
 }
+
+func GetPidByContainerId(containerId string) (string, error) {
+	// 拼接出记录容器信息的文件路径
+	dirPath := fmt.Sprintf(ContainerInfoPathFormat, containerId)
+	configFilePath := path.Join(dirPath, ConfigName)
+	log.Debugf("Container json file path: %v", configFilePath)
+	contentBytes, err := os.ReadFile(configFilePath)
+	if err != nil {
+		return "", errors.Wrapf(err, "read file %s", configFilePath)
+	}
+	var containerInfo ContainerInfo
+	if err = json.Unmarshal(contentBytes, &containerInfo); err != nil {
+		return "", err
+	}
+	return containerInfo.Pid, nil
+}
