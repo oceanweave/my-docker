@@ -2,20 +2,20 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/oceanweave/my-docker/pkg/constant"
 	"github.com/oceanweave/my-docker/pkg/image"
 	"github.com/urfave/cli"
 )
 
 var CommitCommand = cli.Command{
 	Name:  "commit",
-	Usage: "commit container to image",
-	Action: func(ctx *cli.Context) error {
-		if len(ctx.Args()) < 1 {
-			return fmt.Errorf("missing image name")
+	Usage: "commit container to image,e.g. mydocker commit 123456789 myimage",
+	Action: func(context *cli.Context) error {
+		if len(context.Args()) < 2 {
+			return fmt.Errorf("missing container name and image name")
 		}
-		imageName := ctx.Args().Get(0)
-		image.CommitContainer(imageName, constant.OverlayMergedURL)
+		containerId := context.Args().Get(0)
+		imageName := context.Args().Get(1)
+		image.CommitContainer(imageName, containerId)
 		return nil
 	},
 }

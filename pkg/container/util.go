@@ -2,7 +2,6 @@ package container
 
 import (
 	"github.com/oceanweave/my-docker/pkg/cglimit"
-	"github.com/oceanweave/my-docker/pkg/constant"
 	"github.com/oceanweave/my-docker/pkg/image"
 	log "github.com/sirupsen/logrus"
 )
@@ -22,10 +21,8 @@ func CleanStoppedContainerResource(containerId string) {
 	cgroupManager := cglimit.NewCgroupManager("mydocker-cgroup")
 	cgroupManager.Destroy()
 	// 2.2 清理 volume 目录和 overlayfs 文件目录
-	rootURL := constant.OverlayfsRootURL
-	mntURL := constant.OverlayMergedURL
 	// 现 umount volume 目录，避免删除 overlayfs 目录时将宿主机文件删除
-	image.DeleteWorkSpace(rootURL, mntURL, volume)
+	image.DeleteWorkSpace(containerId, volume)
 	// 2.3 清理宿主机文件记录的 Container 信息
 	DeleteContainerInfo(containerId)
 	log.Infof("Finsh Container Resource Clean.")

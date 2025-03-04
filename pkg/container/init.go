@@ -21,6 +21,8 @@ const fdIndex = 3
 func RunContainerInitProcess(command string, args []string) error {
 	log.Infof("Init command: %s", command)
 	// 此处涵盖了 mountProc 所以将其进行了注释
+	// a. 通过 privotRoot 将 pwd 获取的当前目录（merged 目录）作为容器进程根目录
+	// b. 重新挂载 proc 系统，使容器内进程只能看见自己启动的进程和线程，无法看到宿主机上其他进程和线程
 	setUpMount()
 	//mountProc()
 	// 从 pipe 中读取命令

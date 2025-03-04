@@ -56,7 +56,9 @@ var RunCommand = cli.Command{
 
 		var cmdArray []string
 		cmdArray = ctx.Args()
-		log.Infof("Run comand args[0]: %s", cmdArray)
+		imageName := cmdArray[0]
+		cmdArray = cmdArray[1:]
+		log.Debugf("ImageName: %s, Container Command: %s", imageName, cmdArray)
 
 		// tty 和 detach 只能同时生效一个
 		// 根据 -it flag 判断是否需要开启  输入输出重定向到终端
@@ -81,7 +83,7 @@ var RunCommand = cli.Command{
 		containerName := ctx.String("name")
 
 		// 创建容器
-		container.Run(tty, cmdArray, resConf, volume, containerName)
+		container.Run(tty, cmdArray, resConf, volume, containerName, imageName)
 		return nil
 	},
 }
