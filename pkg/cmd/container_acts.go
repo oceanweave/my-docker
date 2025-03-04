@@ -34,15 +34,24 @@ var StopCommand = cli.Command{
 
 var RemoveCommand = cli.Command{
 	Name:  "rm",
-	Usage: "remove a contaienr（first stop，then can remove）, e.g. mydocker stop contaienr-id，then，mydocker rm contaienr-id(1234567890)",
+	Usage: "remove unused container（if running, add '-f' flag can force delete）, e.g. mydocker stop contaienr-id)",
+	Flags: []cli.Flag{
+		cli.BoolFlag{
+			Name:  "f", // 强制删除
+			Usage: "force delete running container",
+		},
+	},
 	Action: func(ctx *cli.Context) error {
 		// 期望输入是： mydocker stop 容器Id，若没有指定参数直接打印错误
 		if len(ctx.Args()) < 1 {
 			return fmt.Errorf("missing container id")
 		}
 		containerId := ctx.Args().Get(0)
+		force := ctx.Bool("f")
 		// 清理容器进程 stop 后残留的 cgroup、overlayfs、volume 等目录
-		container.CleanStoppedContainerResource(containerId)
+		// ./mydocker rm containerId 用于清理 stopped 状态的容器残留目录
+		// ./mydocker rm -f containerId 用于清理 running 状态的容器残留目录
+		container.RemoveContainer(containerId, force)
 		return nil
 	},
 }
