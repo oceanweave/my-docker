@@ -24,7 +24,7 @@ import (
 // 此处会构建 /proc/self/exe init /bin/sh 这个命令
 // 因此执行，相当于再次执行 /proc/self/exe，利用 namespace 构建一个隔离的空间
 // init 又会触发 /proc/self/exe 中的  RunContainerInitProcess 逻辑，替换 1 号进程为 /bin/sh
-func NewParentProcess(tty bool, volume string, containerId string, imageName string) (*exec.Cmd, *os.File) {
+func NewParentProcess(tty bool, volume string, containerId string, imageName string, envSlice []string) (*exec.Cmd, *os.File) {
 	/* 注意此处
 	   - 会在传入的 command 前新增一个 init 参数，也就是先回调用自身的 init 参数，然后再执行传入的命令 command
 	   - init 会调用 RunContainerInitProcess 函数
@@ -70,6 +70,7 @@ func NewParentProcess(tty bool, volume string, containerId string, imageName str
 	image.NewWorkSpace(imageName, containerId, volume)
 	// mydocker init 会通过 pwd 获取该路径，通过 privotRoot 将容器进程的根目录改为当前目录
 	cmd.Dir = image.GetMergedDir(containerId)
+	cmd.Env = append(os.Environ(), envSlice...)
 
 	return cmd, writePipe
 }

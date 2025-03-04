@@ -13,7 +13,7 @@ import (
 // run（my-docker run -it 用户参数，用户参数匿名管道发送端; 为此进程配置 cgroup 限制本身及所有衍生子进程的资源）
 // --> init（隐式逻辑，/proc/self/exe init 等同于 my-docker init，用户参数匿名管道接收端，利用用户参数启动容器进程)
 // --> 容器进程（用户输入的参数）
-func Run(tty bool, cmdArray []string, res *resource.ResourceConfig, volume string, containerName string, imageName string) {
+func Run(tty bool, cmdArray []string, res *resource.ResourceConfig, volume string, containerName string, imageName string, envSlice []string) {
 	// 0. 创建容器 id
 	containerId := GenerateContainerID()
 	log.Debugf("Current containerID is [%s]", containerId)
@@ -23,7 +23,7 @@ func Run(tty bool, cmdArray []string, res *resource.ResourceConfig, volume strin
 	// parent 就是 init 命令，也就是容器父进程；run 进程是 init 的父进程
 	// 此处返回的匿名管道 write 部分，是为了 run 进程将用户参数传递给 init 进程，从而启动真正的容器进程
 	//（采用管道传输用户参数，是为了避免用户传输的参数过长）
-	parent, writePipe := NewParentProcess(tty, volume, containerId, imageName)
+	parent, writePipe := NewParentProcess(tty, volume, containerId, imageName, envSlice)
 	if parent == nil {
 		log.Errorf("New parent process error")
 		return

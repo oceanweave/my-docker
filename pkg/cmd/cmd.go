@@ -42,6 +42,10 @@ var RunCommand = cli.Command{
 			Name:  "name",
 			Usage: "container name",
 		},
+		cli.StringSliceFlag{
+			Name:  "e",
+			Usage: "set environment,e.g. -e name=mydocker",
+		},
 	},
 	/*
 		这里是 run 命令执行的真正函数
@@ -82,8 +86,11 @@ var RunCommand = cli.Command{
 		// 获取容器的 name
 		containerName := ctx.String("name")
 
+		// 获取需配置的环境变量
+		envSlice := ctx.StringSlice("e")
+
 		// 创建容器
-		container.Run(tty, cmdArray, resConf, volume, containerName, imageName)
+		container.Run(tty, cmdArray, resConf, volume, containerName, imageName, envSlice)
 		return nil
 	},
 }
