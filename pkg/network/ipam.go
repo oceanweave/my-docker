@@ -45,6 +45,7 @@ func (ipam *IPAM) load() error {
 		// 文件不存在的错误，返回的 error 为 nil
 		return nil
 	}
+	log.Debugf("Try load Network-IPAM-ConfigFile: %s", ipam.SubnetAllocatorPath)
 	// 读取文件，加载配置信息
 	subnetConfigFile, err := os.Open(ipam.SubnetAllocatorPath)
 	if err != nil {
@@ -120,6 +121,7 @@ func (ipam *IPAM) dump() error {
 		return err
 	}
 	_, err = subnetConfigFile.Write(ipamConfigJson)
+	log.Debugf("Dump Network-IPAM-Info to File: %s", ipam.SubnetAllocatorPath)
 	return err
 }
 
