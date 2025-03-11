@@ -23,7 +23,7 @@ func TestBridgeNetworkDriver_Delete(t *testing.T) {
 		Name:    testName,
 		IPRange: ipRange,
 	}
-	err := b.Delete(n)
+	err := b.Delete(n.Name)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -43,16 +43,16 @@ func (b *BridgeNetworkDriver) Create(subnet string, name string) (*Network, erro
 }
 
 // Delete 删除对应名称的 Bridge 设备即可
-func (b *BridgeNetworkDriver) Delete(network *Network) error {
+func (b *BridgeNetworkDriver) Delete(driverName string) error {
 	// 根据名字找到对应的Bridge设备
-	br, err := netlink.LinkByName(network.Name)
+	br, err := netlink.LinkByName(driverName)
 	if err != nil {
 		return err
 	}
 	// 删除网络对应的 Linux Bridge 设备
 	err = netlink.LinkDel(br)
 	if err != nil {
-		log.Errorf("Error Delete Bridge [%s]", network.Name)
+		log.Errorf("Error Delete Bridge [%s]", driverName)
 		return err
 	}
 	return nil

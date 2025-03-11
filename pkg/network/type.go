@@ -6,6 +6,7 @@ import (
 )
 
 // Network 表示容器网络的相关配置，如网络的容器地址断、网络操作所调用的网络驱动等信息
+// 存储网络驱动相关信息（如网桥）
 type Network struct {
 	Name    string     // 网络名
 	IPRange *net.IPNet // 地址段
@@ -13,6 +14,7 @@ type Network struct {
 }
 
 // Endpoint 表示网络端点的相关信息，如地址、Veth设备、端口映射、连接的容器和网络等信息
+// 存储容器相关信息（如 veth pair）
 type Endpoint struct {
 	ID          string           `json:"id"`
 	Device      netlink.Veth     `json:"dev"`
@@ -28,7 +30,7 @@ type Driver interface {
 	Create(subnet string, name string) (*Network, error)
 	Delete(name string) error
 	Connect(network *Network, endpoint *Endpoint) error
-	Disconnect(network Network, endpoint *Endpoint) error
+	Disconnect(endpoint *Endpoint) error
 }
 
 // IPAMer 用于网络 IP 地址的分配和释放，包括容器的 IP 地址和网络网关的 IP 地址
