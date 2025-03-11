@@ -32,7 +32,7 @@ func TestBridgeNetworkDriver_Delete(t *testing.T) {
 
 func TestBridgeNetworkDriver_Connect(t *testing.T) {
 	ep := &Endpoint{
-		ID: "testcontaier",
+		ID: "testcontainer",
 	}
 	n := &Network{
 		Name: testName,

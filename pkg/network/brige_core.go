@@ -24,8 +24,10 @@ sudo iptables -t nat -A POSTROUTING -s 172.18.0.0/24 -o eth0 -j MASQUERADE
 # -o br0：表示数据包 通过 br0 这个网桥接口 发送。 !（取反）：表示 不通过 br0 发送的数据包 才会匹配此规则。
 # 对 源地址为 172.18.0.0/24 的数据包进行 NAT； 但 不适用于走 br0 接口的数据包，只有 从其他接口（如 eth0、wlan0）出去 的流量才会被修改
 # 让 172.18.0.0/24 的容器 可以通过 eth0 访问外网；但 不会影响 br0 连接的本地通信，避免 NAT 影响局域网通信
+# 这条命令可以简单理解为： 符合该网段，去往 br0 网桥的流量不需要进行 SNAT（也就是容器网桥内部不需要进行 SNAT)
 sudo iptables -t nat -A POSTROUTING -s 172.18.0.0/24 ! -o br0 -j MASQUERADE
 # 如果想让 172.18.0.0/24 网段的设备 只能通过 eth0 访问外网，可以更明确地指定
+sudo iptables -t nat -A POSTROUTING -s 172.18.0.0/24 -o eth0 -j MASQUERADE
 */
 
 func (b *BridgeNetworkDriver) initBridge(n *Network) error {
@@ -120,7 +122,7 @@ func setInterfaceUP(interfaceName string) error {
 // # 语法：iptables -t nat -A POSTROUTING -s {subnet} -o {deviceName} -j MASQUERADE
 func setupIPTables(bridgeName string, subnet *net.IPNet) error {
 	// 拼接命令
-	iptablesCmd := fmt.Sprintf("-t nat -A POSTROUTING -s %s ! -o %s MASQUERADE", subnet.String())
+	iptablesCmd := fmt.Sprintf("-t nat -A POSTROUTING -s %s ! -o %s -j MASQUERADE", subnet.String(), bridgeName)
 	cmd := exec.Command("iptables", strings.Split(iptablesCmd, " ")...)
 	// 执行命令
 	output, err := cmd.Output()
