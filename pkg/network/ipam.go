@@ -2,6 +2,7 @@ package network
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/oceanweave/my-docker/pkg/constant"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -162,9 +163,22 @@ func (ipam *IPAM) Allocate(subnet *net.IPNet) (ip net.IP, err error) {
 		// 1<<uint8(size-one) 表示 2 的 size-one 次幂
 		// 生成 N 个 "0" 组成的字符串，用于标记该子网的 IP 分配状态; 初始时，所有 IP 都是 "0"，表示 未分配
 		// /24 → strings.Repeat("0", 256) → "000000...000" (共 256 个 0) —— /24 对应 one=24  size=32  2的（32-24）次幂=256
-		// 1<<uint8(size-one) - 1 表示该网段可分配的数量
-		// 因为首个 ip 为网关 ip，所以不可用，所以少一个可分配的 ip 因此数量为 1<<uint8(size-one) - 1
-		(*ipam.Subnets)[subnet.String()] = strings.Repeat("0", 1<<uint8(size-one)-1)
+
+		// 在一个子网范围内：
+		// 1. 网段地址（Network Address）：子网的第一个地址，用于标识整个网络，不可分配给主机。
+		// 2. 广播地址（Broadcast Address）：子网的最后一个地址，用于向整个子网广播数据包，也不可分配给主机。
+		// 3. 所以可分配地址数量为 1<<uint8(size-one) - 2 表示该网段可分配的数量
+		// 4. 网关网段内第一个可用地址，一般作为网关
+		/*
+			以 192.168.1.0/24 网段为例
+			- 192.168.1.0 → 网段地址（Network Address，不可分配）,用于标识整个 192.168.1.0/24 网络，不能分配给设备,它常见于路由表、子网定义、IP 规划、DHCP 配置和路由协议中。
+			- 192.168.1.1 → 通常分配给网桥，作为网关
+			- 192.168.1.2 ~ 192.168.1.254 → 可分配给主机
+			- 192.168.1.255 → 广播地址（Broadcast Address，不可分配）
+		*/
+		ipCount := 1 << uint8(size-one)
+		ipalloc := strings.Repeat("0", ipCount-2)
+		(*ipam.Subnets)[subnet.String()] = fmt.Sprintf("1%s1", ipalloc)
 	}
 
 	// 遍历网段的位图数组
@@ -184,13 +198,11 @@ func (ipam *IPAM) Allocate(subnet *net.IPNet) (ip net.IP, err error) {
 				uint8(65555 >> 8)、uint8(65555 >> 0)]， 即[0, 1, 0, 19]， 那么获得的IP就
 				是172.17.0.19.
 			*/
+			// 对每个部分进行模 256，保证 ip 由 . 分割的4个部分都在 0-255 内
 			for t := uint(4); t > 0; t-- {
 				// uint8（无符号 8 位整数）的范围是 0~255，而 256 超出了 uint8 的范围。 当一个大于 255 的值转换为 uint8 时，会 取模 256
 				[]byte(ip)[4-t] += uint8(freePos >> ((t - 1) * 8))
 			}
-			// 由于 freePos 从 0 开始，而网关 ip 不能分配，所以最后再加 1
-			// 最终得到分配的IP 172.17.0.20
-			ip[3] += 1
 			break
 		}
 	}
