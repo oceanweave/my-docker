@@ -38,6 +38,7 @@ func (b *BridgeNetworkDriver) initBridge(n *Network) error {
 	}
 	// 2. 设置 Bridge 设备地址和路由
 	gatewayIP := *n.IPRange
+	log.Debugf("initBridge gatewayIP: %s", gatewayIP.String())
 	// gatewayIP.String() 返回形式如 "192.168.1.1/24"
 	if err := setInterfaceIP(bridgeName, gatewayIP.String()); err != nil {
 		return errors.Wrapf(err, "Error set bridge ip: %s on bridge: %s", gatewayIP.String(), bridgeName)

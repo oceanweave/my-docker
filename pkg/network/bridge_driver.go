@@ -24,11 +24,16 @@ func (b *BridgeNetworkDriver) Name() string {
 }
 
 // Create 根据子网信息创建 Bridge 设备并初始化
+// 传入的参数，例如为 192.168.0.1/24  string  类型，此处就是将其转为 *net.IPNet 类型，存入到 Network 结构体中
 func (b *BridgeNetworkDriver) Create(subnet string, name string) (*Network, error) {
-	_, ipRange, err := net.ParseCIDR(subnet)
+	// 此作用就是 192.168.0.1/24 可以解析 ip 为  192.168.0.1 ；解析 ipRange 为 192.168.0.0/24
+	ip, ipRange, err := net.ParseCIDR(subnet)
 	if err != nil {
 		return nil, err
 	}
+	// 因此此处很关键，就是将 ipRange 中 ip 部分的 192.168.0.0 改为 192.168.0.1
+	// 此处的 ip 后续要作为网桥的 ip 进行配置
+	ipRange.IP = ip
 	n := &Network{
 		Name:    name,
 		IPRange: ipRange,

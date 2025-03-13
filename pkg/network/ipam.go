@@ -134,6 +134,7 @@ func (ipam *IPAM) dump() error {
 */
 // Allocate 在网段中分配一个可用的 IP 地址
 func (ipam *IPAM) Allocate(subnet *net.IPNet) (ip net.IP, err error) {
+	log.Debugf("Allocate IP ... ...")
 	// 存放网段中地址分配信息的数组
 	ipam.Subnets = &map[string]string{}
 
@@ -210,11 +211,15 @@ func (ipam *IPAM) Allocate(subnet *net.IPNet) (ip net.IP, err error) {
 	if err != nil {
 		log.Error("Allocate: dump ipam error", err)
 	}
+	log.Debugf("Allocate IP Finish —— subnet: %s, get free ip: %s", subnet.String(), ip)
 	return
 }
 
+// Release 从 subnet 解析出真正的网段， ipaddr 为待释放的 ip
 func (ipam *IPAM) Release(subnet *net.IPNet, ipaddr *net.IP) error {
+	log.Debugf("Release IP ... ...")
 	ipam.Subnets = &map[string]string{}
+	// 从 subnet 解析出真正的网段， subnet 为 192.168.0.1/24 此处解析出的 subnet 为 192.168.0.1/24
 	_, subnet, _ = net.ParseCIDR(subnet.String())
 
 	err := ipam.load()
@@ -224,8 +229,6 @@ func (ipam *IPAM) Release(subnet *net.IPNet, ipaddr *net.IP) error {
 	// 和分配一样的算法，反过来根据 ip 找到位图数组中的对应索引位置
 	needReleasePos := 0
 	releaseIP := ipaddr.To4()
-	// 由于上面网关 ip 不分配进行 + 1，此处要 -1
-	releaseIP[3] -= 1
 	for t := uint(4); t > 0; t-- {
 		// 每个部分的偏移量，要移动回去
 		needReleasePos += int(releaseIP[t-1]-subnet.IP[t-1]) << ((4 - t) * 8)
@@ -240,5 +243,6 @@ func (ipam *IPAM) Release(subnet *net.IPNet, ipaddr *net.IP) error {
 	if err != nil {
 		log.Error("Allocate: dump ipam error", err)
 	}
+	log.Debugf("Release IP Finish —— subnet: %s, release ip: %s", subnet.String(), ipaddr.String())
 	return nil
 }
