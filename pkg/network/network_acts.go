@@ -14,7 +14,7 @@ func CreateNetwork(driver, subnet, name string) error {
 	_, cidr, _ := net.ParseCIDR(subnet)
 	// 通过 IPAM 分配网关IP，获取到网段中第一个 IP 作为网关的 IP
 	// 以 192.168.1.0/24 为例，此处获得的 IP 应该为 192.168.1.1，将该地址作为网关
-	ip, err := ipAllocator.Allocate(cidr)
+	ip, err := IPAllocator.Allocate(cidr)
 	if err != nil {
 		return err
 	}
@@ -23,7 +23,7 @@ func CreateNetwork(driver, subnet, name string) error {
 	cidr.IP = ip
 	// 调用指定的网络驱动创建网络，这里的 drivers 字典是各个网络驱动的实例字典
 	// 通过调用网络驱动的 Create 方法创建网络，后面会议 Bridge 驱动为例介绍它的实现
-	net, err := drivers[driver].Create(cidr.String(), name)
+	net, err := Drivers[driver].Create(cidr.String(), name)
 	if err != nil {
 		return err
 	}
@@ -68,11 +68,11 @@ func DeleteNetwork(networkName string) error {
 	}
 	// 调用 IPAM 的实例 ipAllocator 释放网络网关的 IP
 	log.Debugf("DeleteNetwork net info: IPRange: %s, IP: %s", net.IPRange.String(), net.IPRange.IP.String())
-	if err = ipAllocator.Release(net.IPRange, &net.IPRange.IP); err != nil {
+	if err = IPAllocator.Release(net.IPRange, &net.IPRange.IP); err != nil {
 		return errors.Wrap(err, "remove Network gateway ip failed")
 	}
 	// 调用网络驱动删除网络创建的设备与配置，后面会以 Bridge 驱动删除网络为例，介绍如何实现网络驱动删除网络
-	if err = drivers[net.Driver].Delete(net.Name); err != nil {
+	if err = Drivers[net.Driver].Delete(net); err != nil {
 		return errors.Wrap(err, "remove Network Driver Error failed")
 	}
 	// 最后从网络的配置目录中删除该网络对应的配置文件

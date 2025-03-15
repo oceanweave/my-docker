@@ -34,7 +34,7 @@ type Endpoint struct {
 type Driver interface {
 	Name() string
 	Create(subnet string, name string) (*Network, error)
-	Delete(name string) error
+	Delete(network *Network) error
 	Connect(network *Network, endpoint *Endpoint) error
 	Disconnect(endpoint *Endpoint) error
 }

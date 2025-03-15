@@ -48,18 +48,30 @@ func (b *BridgeNetworkDriver) Create(subnet string, name string) (*Network, erro
 }
 
 // Delete 删除对应名称的 Bridge 设备即可
-func (b *BridgeNetworkDriver) Delete(driverName string) error {
+func (b *BridgeNetworkDriver) Delete(net *Network) error {
 	// 根据名字找到对应的Bridge设备
-	br, err := netlink.LinkByName(driverName)
+	// 1. 清除路由规则
+	err := deleteIPRoute(net.Name, net.IPRange.String())
+	if err != nil {
+		return errors.WithMessagef(err, "clean route rule failed after bridge [%s] deleted", net.Name)
+	}
+
+	// 2. 清除 iptables 的 SNAT 规则
+	br, err := netlink.LinkByName(net.Name)
 	if err != nil {
 		return err
 	}
-	// 删除网络对应的 Linux Bridge 设备
+	if err := deleteIPTables(net.Name, net.IPRange); err != nil {
+		return errors.Wrapf(err, "Failed to delete iptables for %s", net.Name)
+	}
+
+	// 3. 删除网络对应的 Linux Bridge 设备
 	err = netlink.LinkDel(br)
 	if err != nil {
-		log.Errorf("Error Delete Bridge [%s]", driverName)
+		log.Errorf("Error Delete Bridge [%s]", net.Name)
 		return err
 	}
+
 	return nil
 }
 
@@ -108,6 +120,7 @@ func (b *BridgeNetworkDriver) Connect(network *Network, endpoint *Endpoint) erro
 	if err = netlink.LinkSetUp(&endpoint.Device); err != nil {
 		return fmt.Errorf("error SetUp Endpoint Device: %v", err)
 	}
+	log.Debugf("Bridge Connect Func, Bridge: %s, host-Veth:%s, contaienr-Veth:%s", bridgeName, vethAttr.Name, endpoint.Device.PeerName)
 	return nil
 }
 

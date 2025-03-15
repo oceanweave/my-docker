@@ -51,6 +51,14 @@ func (b *BridgeNetworkDriver) initBridge(n *Network) error {
 	if err := setupIPTables(bridgeName, n.IPRange); err != nil {
 		return errors.Wrapf(err, "Failed to set up iptables for %s", bridgeName)
 	}
+	// 5. 设置路由规则 报错但配置上（是默认配置的吗？）
+	// 问题解答：
+	// - 若容器访问外网，需要在宿主机上配置（可转发） sysctl net.ipv4.conf.all.forwarding=1
+	// - 配置上面，创建网桥时自动会为网桥增加一条路由，如 10.0.0.0/24 dev testbridge proto kernel scope link src 10.0.0.1
+	// - 因此，此处再次配置，将会报错，所以无需配置（但是网桥删除的时候，需要手动删除此路由）
+	//if err := setupRoutes(bridgeName, n.IPRange); err != nil {
+	//	return errors.Wrapf(err, "Failed to set up Routes for %s", bridgeName)
+	//}
 	return nil
 }
 
@@ -119,16 +127,100 @@ func setInterfaceUP(interfaceName string) error {
 }
 
 // 4. 设置 iptables SNAT 规则
+// 4.1  增加 iptables 规则，用于该网段的容器发往外部的数据包（将容器 IP SNAT 为 宿主机IP）
 // $ iptables -t nat -A POSTROUTING -s 172.18.0.0/24 -o eth0 -j MASQUERADE
 // # 语法：iptables -t nat -A POSTROUTING -s {subnet} -o {deviceName} -j MASQUERADE
 func setupIPTables(bridgeName string, subnet *net.IPNet) error {
+	return configIPTables(bridgeName, subnet, false)
+}
+
+// 4.2  删除 iptables 规则，当删除该网桥网络时，删除对应的 iptables 规则
+// $ iptables -t nat -D POSTROUTING -s 172.18.0.0/24 -o eth0 -j MASQUERADE
+func deleteIPTables(bridgeName string, subnet *net.IPNet) error {
+	return configIPTables(bridgeName, subnet, true)
+}
+
+func configIPTables(bridgeName string, subnet *net.IPNet, isDelete bool) error {
+	action := "-A"
+	if isDelete {
+		action = "-D"
+	}
 	// 拼接命令
-	iptablesCmd := fmt.Sprintf("-t nat -A POSTROUTING -s %s ! -o %s -j MASQUERADE", subnet.String(), bridgeName)
+	iptablesCmd := fmt.Sprintf("-t nat %s POSTROUTING -s %s ! -o %s -j MASQUERADE", action, subnet.String(), bridgeName)
 	cmd := exec.Command("iptables", strings.Split(iptablesCmd, " ")...)
-	// 执行命令
+	log.Infof("Add(-A) or Delete(-D) SNAT cmd：%v", cmd.String())
+	// 执行该命令
 	output, err := cmd.Output()
 	if err != nil {
 		log.Errorf("iptables Output, %v", output)
 	}
 	return err
+}
+
+// 5. 在宿主机上设置路由，发往此网段的数据包都通过该网桥发送
+// 示例 10.0.0.0/24 dev testbridge proto kernel scope link src 10.0.0.1
+func setupRoutes(bridgeName string, subnet *net.IPNet) error {
+	// 目标网络
+	bridgeIP, dstIPRanage, err := net.ParseCIDR(subnet.String())
+	if err != nil {
+		fmt.Println("Error parsing CIDR:", err)
+		return err
+	}
+
+	// 查找网桥
+	link, err := netlink.LinkByName(bridgeName)
+	if err != nil {
+		fmt.Println("Error finding link:", err)
+		return err
+	}
+
+	// 设置路由
+	route := &netlink.Route{
+		LinkIndex: link.Attrs().Index, // 设备索引
+		Dst:       dstIPRanage,        // 目标网络
+		Scope:     netlink.SCOPE_LINK, // 链路级别的作用域
+		Src:       bridgeIP,           // 指定 src 地址
+	}
+
+	// 添加路由
+	if err := netlink.RouteAdd(route); err != nil {
+		return errors.Wrapf(err, "Error adding route:")
+	}
+	return nil
+}
+
+// 6. 删除路由
+// - ip route del 10.0.0.0/24 dev testbridge，
+// - 如果还想确保 src IP 也匹配 ip route del 10.0.0.0/24 dev testbridge src 10.0.0.1
+func deleteIPRoute(name string, rawIP string) error {
+	retries := 2
+	var iface netlink.Link
+	var err error
+	for i := 0; i < retries; i++ {
+		// 通过LinkByName方法找到需要设置的网络接口
+		iface, err = netlink.LinkByName(name)
+		if err == nil {
+			break
+		}
+		log.Debugf("error retrieving new bridge netlink link [ %s ]... retrying", name)
+		time.Sleep(2 * time.Second)
+	}
+	if err != nil {
+		return errors.Wrap(err, "abandoning retrieving the new bridge link from netlink, Run [ ip link ] to troubleshoot")
+	}
+	// 查询对应设备的路由并全部删除
+	list, err := netlink.RouteList(iface, netlink.FAMILY_V4)
+	if err != nil {
+		return err
+	}
+	for _, route := range list {
+		if route.Dst.String() == rawIP { // 根据子网进行匹配
+			err = netlink.RouteDel(&route)
+			if err != nil {
+				log.Errorf("route [%v] del failed,detail:%v", route, err)
+				continue
+			}
+		}
+	}
+	return nil
 }

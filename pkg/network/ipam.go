@@ -31,7 +31,8 @@ type IPAM struct {
 }
 
 // 初始化一个 IPAM 的对象，默认使用 /var/lib/mydocker/network/ipam/subnet.json
-var ipAllocator = &IPAM{
+// 将字母改为大写，便于别的包引用
+var IPAllocator = &IPAM{
 	SubnetAllocatorPath: ipamDefaultAllocatorPath,
 }
 

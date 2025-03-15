@@ -14,13 +14,13 @@ import (
 var (
 	// 默认将容器网络信息存储在/var/lib/mydocker/network/network/目录
 	defaultNetworkPath = "/var/lib/mydocker/network/network"
-	drivers            = map[string]Driver{}
+	Drivers            = map[string]Driver{}
 )
 
 func init() {
 	// 加载网络驱动
 	var bridgeDriver = BridgeNetworkDriver{}
-	drivers[bridgeDriver.Name()] = &bridgeDriver
+	Drivers[bridgeDriver.Name()] = &bridgeDriver
 
 	// 文件不存在则创建
 	if _, err := os.Stat(defaultNetworkPath); err != nil {
