@@ -67,6 +67,7 @@ func NewParentProcess(tty bool, volume string, containerId string, imageName str
 	// 因此此处 3——匿名管道
 	cmd.ExtraFiles = []*os.File{readPipe}
 
+	// 为容器创建 overlayfs 目录，挂载镜像文件等，同时创建目录，将 -v 参数指定的宿主机目录挂载到容器内
 	image.NewWorkSpace(imageName, containerId, volume)
 	// mydocker init 会通过 pwd 获取该路径，通过 privotRoot 将容器进程的根目录改为当前目录
 	cmd.Dir = image.GetMergedDir(containerId)

@@ -32,7 +32,7 @@ var RunCommand = cli.Command{
 		},
 		cli.StringFlag{ // 数据卷
 			Name:  "v",
-			Usage: "volume, e.g.: -v /etc/conf:/etc/conf",
+			Usage: "volume, e.g.: -v /etc/conf:/etc/conf（ -v hostpath:contaienrpath)",
 		},
 		cli.BoolFlag{
 			Name:  "d",
@@ -45,6 +45,14 @@ var RunCommand = cli.Command{
 		cli.StringSliceFlag{
 			Name:  "e",
 			Usage: "set environment,e.g. -e name=mydocker",
+		},
+		cli.StringFlag{
+			Name:  "net",
+			Usage: "container network, e.g. -net testbr(NetworkName)",
+		},
+		cli.StringSliceFlag{
+			Name:  "p",
+			Usage: "port mapping, e.g. -p 8080:80 -p 30336:3306",
 		},
 	},
 	/*
@@ -89,8 +97,12 @@ var RunCommand = cli.Command{
 		// 获取需配置的环境变量
 		envSlice := ctx.StringSlice("e")
 
+		// 获取需配置的网络信息和端口信息
+		network := ctx.String("net")
+		portMapping := ctx.StringSlice("p")
+		
 		// 创建容器
-		container.Run(tty, cmdArray, resConf, volume, containerName, imageName, envSlice)
+		container.Run(tty, cmdArray, resConf, volume, containerName, imageName, envSlice, network, portMapping)
 		return nil
 	},
 }

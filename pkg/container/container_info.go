@@ -27,13 +27,16 @@ const (
 )
 
 type ContainerInfo struct {
-	Pid         string `json:"pid"`
-	Id          string `json:"id"`
-	Name        string `json:"name"`
-	Command     string `json:"command"`
-	CreatedTime string `json:"createdTime"`
-	Status      string `json:"status"`
-	Volume      string `json:"volume"`
+	Pid         string   `json:"pid"`
+	Id          string   `json:"id"`
+	Name        string   `json:"name"`
+	Command     string   `json:"command"`
+	CreatedTime string   `json:"createdTime"`
+	Status      string   `json:"status"`
+	Volume      string   `json:"volume"`
+	NetworkName string   `json:"networkName"` // 容器所在的网络
+	PortMapping []string `json:"portmapping"` // 端口映射
+	IP          string   `json:"ip"`
 }
 
 func GenerateContainerID() string {
@@ -51,7 +54,7 @@ func randStringsBytes(n int) string {
 	return string(b)
 }
 
-func RecordContainerInfo(containerPID int, cmdArray []string, containerName, containerId string, volume string) error {
+func RecordContainerInfo(containerPID int, cmdArray []string, containerName, containerId string, volume string) (*ContainerInfo, error) {
 	// 如果未指定容器名，则使用随机生成的 containerID
 	if containerName == "" {
 		containerName = containerId
@@ -64,31 +67,32 @@ func RecordContainerInfo(containerPID int, cmdArray []string, containerName, con
 		CreatedTime: time.Now().Format("2006-01-02 15:04:05"),
 		Status:      RUNNING,
 		Name:        containerName,
+		Volume:      volume,
 	}
 
 	jsonBytes, err := json.Marshal(containerInfo)
 	if err != nil {
-		return errors.WithMessage(err, "container info marshal failed")
+		return containerInfo, errors.WithMessage(err, "container info marshal failed")
 	}
 	jsonStr := string(jsonBytes)
 	// 持久化存储到宿主机上
 	// 拼接出存储容器信息文件的路径，如果目录不存在则级联创建
 	dirPath := fmt.Sprintf(ContainerInfoPathFormat, containerId)
 	if err := os.MkdirAll(dirPath, constant.Perm0622); err != nil {
-		return errors.WithMessagef(err, "mkdir %s failed", dirPath)
+		return containerInfo, errors.WithMessagef(err, "mkdir %s failed", dirPath)
 	}
 	// 将容器信息写入文件 /var/lib/mydocker/containers/${continerId}/config.json
 	fileName := path.Join(dirPath, ConfigName)
 	file, err := os.Create(fileName)
 	defer file.Close()
 	if err != nil {
-		return errors.WithMessagef(err, "create file %s failed", fileName)
+		return containerInfo, errors.WithMessagef(err, "create file %s failed", fileName)
 	}
 	log.Debugf("ContainerInfo save path: %s", fileName)
 	if _, err = file.WriteString(jsonStr); err != nil {
-		return errors.WithMessagef(err, "write container info to file %s failed", fileName)
+		return containerInfo, errors.WithMessagef(err, "write container info to file %s failed", fileName)
 	}
-	return nil
+	return containerInfo, nil
 }
 
 func DeleteContainerInfo(containerID string) {

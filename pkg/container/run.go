@@ -6,6 +6,7 @@ import (
 	"github.com/oceanweave/my-docker/pkg/image"
 	log "github.com/sirupsen/logrus"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -13,7 +14,7 @@ import (
 // run（my-docker run -it 用户参数，用户参数匿名管道发送端; 为此进程配置 cgroup 限制本身及所有衍生子进程的资源）
 // --> init（隐式逻辑，/proc/self/exe init 等同于 my-docker init，用户参数匿名管道接收端，利用用户参数启动容器进程)
 // --> 容器进程（用户输入的参数）
-func Run(tty bool, cmdArray []string, res *resource.ResourceConfig, volume string, containerName string, imageName string, envSlice []string) {
+func Run(tty bool, cmdArray []string, res *resource.ResourceConfig, volume string, containerName string, imageName string, envSlice []string, net string, portMapping []string) {
 	// 0. 创建容器 id
 	containerId := GenerateContainerID()
 	log.Debugf("Current containerID is [%s]", containerId)
@@ -34,13 +35,14 @@ func Run(tty bool, cmdArray []string, res *resource.ResourceConfig, volume strin
 	}
 
 	// 持久化容器信息到宿主机上指定的 json 文件中
-	err := RecordContainerInfo(parent.Process.Pid, cmdArray, containerName, containerId, volume)
+	_, err := RecordContainerInfo(parent.Process.Pid, cmdArray, containerName, containerId, volume)
 	if err != nil {
 		log.Errorf("Record container info error %v", err)
 		return
 	}
 
-	// 2. 根据资源配置，创建 cgroup 目录并设置对应的配额限制
+	// 2. 资源配置
+	// 2.1 根据资源配置，创建 cgroup 目录并设置对应的配额限制
 	// 创建 cgroup manager, 并通过调用 set 和 apply 设置资源限制并限制在容器上生效
 	// TODO: 此处 mydocker-cgroup 为创建的资源限制子 cgroup，若启动多个进程应该名称设置为不同（否则会引发bug，某个进程结束会删除该目录），所以此处待改进
 	// 经过测试，此 TODO 居然 没问题，可能是因为 cgroup 机制原因，同时开启多个 mydocker 运行容器，结束一个容器进行，并没有清理此目录，可能是因为检测到有进程占用
@@ -52,6 +54,21 @@ func Run(tty bool, cmdArray []string, res *resource.ResourceConfig, volume strin
 		_ = cgroupManager.Set(res)
 		// TODO: 若容器没有配置任何资源限额，此处会提示找不到 /sys/fs/cgroup/${resource}/mydocker-cgroup/ 目录，因为没配置资源限制，上面 Set 就不会创建此目录；不过影响不大，就是个报错
 		_ = cgroupManager.Apply(parent.Process.Pid)
+	}
+	//// 2.2 网络资源配置，若指定了网络信息则进行配置
+	if net != "" {
+		// config contaienr network
+		containerInfo := &ContainerInfo{
+			Id:          containerId,
+			Pid:         strconv.Itoa(parent.Process.Pid),
+			Name:        containerName,
+			PortMapping: portMapping,
+		}
+		// 将容器端 veth 设备移入到 容器net namespace 内，并在容器 net namespace 配置路由和默认网关等
+		if err = Connect(net, containerInfo); err != nil {
+			log.Errorf("Error Connect Network %v", err)
+			return
+		}
 	}
 
 	// 3. 将用户参数发送给 init 进程，从而生成容器进程（此处用户参数的进程会替换 init，作为 1 号进程）
@@ -70,13 +87,14 @@ func Run(tty bool, cmdArray []string, res *resource.ResourceConfig, volume strin
 		cgroupManager.Destroy()
 		image.DeleteWorkSpace(containerId, volume)
 		DeleteContainerInfo(containerId)
+		// TODO: 容器退出后，释放容器 IP
+		//ReleaseContainerIP()
 		log.Infof("Finsh Container Resource Clean.")
 	}
 	// 4.2 容器进程 detach，若没开启 tty，my-docker 主进程会结束，容器进程会被【宿主机上的1号进程】纳管（在宿主机上执行 ps -ef 或 pstree -pl 可查看到）
 	// - 由于主进程已经结束，因此当容器进程结束后，相应的 overlay 目录等需要手动清理
 	// - cd ${constant.OverlayfsRootURL}
 	// - umount merged && rm -rf merged/ upper/ work/
-	// TODO: -d (detach) 情况下，完成容器资源的清理工作
 
 	//os.Exit(-1)
 }
