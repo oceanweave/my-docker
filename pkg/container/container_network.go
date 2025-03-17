@@ -15,16 +15,7 @@ import (
 	"time"
 )
 
-//func ReleaseContainerIP(containerInfo *ContainerInfo) {
-//	ip, ipNet, _ := net.ParseCIDR("192.168.0.1/24")
-//	err := IPAllocator.Release(ipNet, &ip)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//}
-
-func Connect(networkName string, containerInfo *ContainerInfo) error {
-	log.Debugf("Set Container Network")
+func ReleaseContainerIP(containerInfo *ContainerInfo) error {
 	// 1. 加载当前记录的所有 network 信息
 	networks, err := network.LoadNetwork()
 	//fmt.Println(networks)
@@ -33,14 +24,38 @@ func Connect(networkName string, containerInfo *ContainerInfo) error {
 	}
 	// 2. 根据容器配置的网络名称 networkName，从 networks 字典中取到容器连接的网络的信息，
 	// networks 字典中保存了当前已经创建的所有网络
+	containerNet, ok := networks[containerInfo.NetworkName]
+	if !ok {
+		return fmt.Errorf("no Such Network: %s", containerNet)
+	}
+	// 3. 释放 IP
+	containerIP := net.ParseIP(containerInfo.IP)
+	err = network.IPAllocator.Release(containerNet.IPRange, &containerIP)
+	if err != nil {
+		return errors.WithMessagef(err, "Error to release containerID[%s]-containerIP[%s]", containerInfo.Id, containerInfo.IP)
+	}
+	log.Debugf("Finsh Release Container[%s] IP[%s]", containerInfo.Id, containerInfo.IP)
+	return nil
+}
+
+func Connect(networkName string, containerInfo *ContainerInfo) (net.IP, error) {
+	log.Debugf("Set Container Network")
+	// 1. 加载当前记录的所有 network 信息
+	networks, err := network.LoadNetwork()
+	//fmt.Println(networks)
+	if err != nil {
+		return nil, errors.WithMessage(err, "load network frome file failed")
+	}
+	// 2. 根据容器配置的网络名称 networkName，从 networks 字典中取到容器连接的网络的信息，
+	// networks 字典中保存了当前已经创建的所有网络
 	net, ok := networks[networkName]
 	if !ok {
-		return fmt.Errorf("no Such Network: %s", networkName)
+		return nil, fmt.Errorf("no Such Network: %s", networkName)
 	}
 	// 3. 根据获取到的 network 信息，为容器容器分配空闲的 IP 地址
 	ip, err := network.IPAllocator.Allocate(net.IPRange)
 	if err != nil {
-		return errors.Wrapf(err, "allocate ip")
+		return nil, errors.Wrapf(err, "allocate ip")
 	}
 
 	log.Debugf("ContainerInfo —— ContainerId: %s, UseNetwork: %s, ContainerIP: %s", containerInfo.Id, containerInfo.NetworkName, ip)
@@ -59,23 +74,23 @@ func Connect(networkName string, containerInfo *ContainerInfo) error {
 	// 创建 veth pair，将一端加入到网桥上并启动（通过 net 中信息可找到已创建的网桥）
 	// veth pair 的另一端 暂未进行操作，后续会移动到 容器 net namespace 中
 	if err = network.Drivers[net.Driver].Connect(net, ep); err != nil {
-		return err
+		return ip, err
 	}
 	// 6. 到容器的 namespace 配置容器网络设备 IP 地址
 	// - 将上面 veth pair 的另一端移入到容器的 net namespace 中
 	// - 同时进入到容器 net namespace，配置 veth 设备为容器 ip 并启动，同时启动回环网卡，并配置网关路由（网关就是 network 设备 即网桥）
 	// - 最后返回到宿主机 net namespace
 	if err = configEndpointIpAddressAndRoute(ep, containerInfo); err != nil {
-		return err
+		return ip, err
 	}
 	// 7. 配置端口映射信息，例如  mydocker run -p 8080:80 -p 8090:90
 	// - 通过 iptables 实现宿主机端口到容器端口的映射（nat）
 	// - 8080:80 第一个参数为宿主机端口 如 8080， 第二个参数为容器端口 如80
 	if err = configPortMappping(ep); err != nil {
-		return err
+		return ip, err
 	}
 
-	return nil
+	return ip, nil
 }
 
 // configPortMapping 配置端口映射

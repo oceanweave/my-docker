@@ -3,14 +3,13 @@ package container
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/oceanweave/my-docker/pkg/cglimit"
 	"github.com/oceanweave/my-docker/pkg/constant"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"math/rand"
 	"os"
 	"path"
-	"strconv"
-	"strings"
 	"text/tabwriter"
 	"time"
 )
@@ -27,16 +26,17 @@ const (
 )
 
 type ContainerInfo struct {
-	Pid         string   `json:"pid"`
-	Id          string   `json:"id"`
-	Name        string   `json:"name"`
-	Command     string   `json:"command"`
-	CreatedTime string   `json:"createdTime"`
-	Status      string   `json:"status"`
-	Volume      string   `json:"volume"`
-	NetworkName string   `json:"networkName"` // 容器所在的网络
-	PortMapping []string `json:"portmapping"` // 端口映射
-	IP          string   `json:"ip"`
+	Pid           string                 `json:"pid"`
+	Id            string                 `json:"id"`
+	Name          string                 `json:"name"`
+	Command       string                 `json:"command"`
+	CreatedTime   string                 `json:"createdTime"`
+	Status        string                 `json:"status"`
+	Volume        string                 `json:"volume"`
+	NetworkName   string                 `json:"networkName"` // 容器所在的网络
+	PortMapping   []string               `json:"portmapping"` // 端口映射
+	IP            string                 `json:"ip"`
+	CgroupManager *cglimit.CgroupManager `json:"cgroupManager"`
 }
 
 func GenerateContainerID() string {
@@ -54,45 +54,30 @@ func randStringsBytes(n int) string {
 	return string(b)
 }
 
-func RecordContainerInfo(containerPID int, cmdArray []string, containerName, containerId string, volume string) (*ContainerInfo, error) {
-	// 如果未指定容器名，则使用随机生成的 containerID
-	if containerName == "" {
-		containerName = containerId
-	}
-	command := strings.Join(cmdArray, "")
-	containerInfo := &ContainerInfo{
-		Id:          containerId,
-		Pid:         strconv.Itoa(containerPID),
-		Command:     command,
-		CreatedTime: time.Now().Format("2006-01-02 15:04:05"),
-		Status:      RUNNING,
-		Name:        containerName,
-		Volume:      volume,
-	}
-
+func RecordContainerInfo(containerInfo *ContainerInfo) error {
 	jsonBytes, err := json.Marshal(containerInfo)
 	if err != nil {
-		return containerInfo, errors.WithMessage(err, "container info marshal failed")
+		return errors.WithMessage(err, "container info marshal failed")
 	}
 	jsonStr := string(jsonBytes)
 	// 持久化存储到宿主机上
-	// 拼接出存储容器信息文件的路径，如果目录不存在则级联创建
-	dirPath := fmt.Sprintf(ContainerInfoPathFormat, containerId)
+	// 根据容器 ID 拼接出存储容器信息文件的路径，如果目录不存在则级联创建
+	dirPath := fmt.Sprintf(ContainerInfoPathFormat, containerInfo.Id)
 	if err := os.MkdirAll(dirPath, constant.Perm0622); err != nil {
-		return containerInfo, errors.WithMessagef(err, "mkdir %s failed", dirPath)
+		return errors.WithMessagef(err, "mkdir %s failed", dirPath)
 	}
 	// 将容器信息写入文件 /var/lib/mydocker/containers/${continerId}/config.json
 	fileName := path.Join(dirPath, ConfigName)
 	file, err := os.Create(fileName)
 	defer file.Close()
 	if err != nil {
-		return containerInfo, errors.WithMessagef(err, "create file %s failed", fileName)
+		return errors.WithMessagef(err, "create file %s failed", fileName)
 	}
-	log.Debugf("ContainerInfo save path: %s", fileName)
+	log.Debugf("Create ContainerInfo[%s] Save-Path[%s]", containerInfo.Id, fileName)
 	if _, err = file.WriteString(jsonStr); err != nil {
-		return containerInfo, errors.WithMessagef(err, "write container info to file %s failed", fileName)
+		return errors.WithMessagef(err, "write container info to file %s failed", fileName)
 	}
-	return containerInfo, nil
+	return nil
 }
 
 func DeleteContainerInfo(containerID string) {
@@ -100,6 +85,7 @@ func DeleteContainerInfo(containerID string) {
 	if err := os.RemoveAll(dirPath); err != nil {
 		log.Errorf("Remove dir %s error %v", dirPath, err)
 	}
+	log.Debugf("Remove ContainerInfo[%s] Save-Path[%s]", containerID, dirPath)
 }
 
 func ListContainers() {
@@ -121,14 +107,15 @@ func ListContainers() {
 	// 使用 tabwriter.NewWriter 在控制台打印出容器信息
 	// tabwriter 是引用的 text/tabwriter 类库，用于在控制台打印对齐的表格
 	w := tabwriter.NewWriter(os.Stdout, 12, 1, 3, ' ', 0)
-	_, err = fmt.Fprint(w, "ID\tNAME\tPID\tSTATUS\tCOMMAND\tCREATED\tVolume\n")
+	_, err = fmt.Fprint(w, "ID\tNAME\tIP\tPID\tSTATUS\tCOMMAND\tCREATED\tVolume\n")
 	if err != nil {
 		log.Errorf("Fprint error %v", err)
 	}
 	for _, item := range containersInfo {
-		_, err = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		_, err = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 			item.Id,
 			item.Name,
+			item.IP,
 			item.Pid,
 			item.Status,
 			item.Command,
