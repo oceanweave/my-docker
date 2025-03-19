@@ -28,7 +28,6 @@ func ExecContainer(containerId string, cmdArray []string) {
 
 	// 把命令拼接成字符串，便于传递
 	cmdStr := strings.Join(cmdArray, " ")
-	log.Infof("container pid: %s command: %s", pid, cmdStr)
 	_ = os.Setenv(EnvExecPid, pid)
 	_ = os.Setenv(EnvExecCmd, cmdStr)
 	// 由于环境变量是继承自父进程的，因此这个 exec 进程的环境变量其实是继承自宿主机的，
@@ -36,6 +35,7 @@ func ExecContainer(containerId string, cmdArray []string) {
 	// 此处根据进程 pid 获取进程的环境变量
 	containerEnvs := getEnvsByPid(pid)
 	cmd.Env = append(os.Environ(), containerEnvs...)
+	log.Infof("Container Exec-Operation will Run Command[%s], And Set Envs[%s/%s]，So the import-init-nsenter-cgo will set your-Process[%s] into Container[%s]-Process's Namespace", cmdStr, EnvExecPid, EnvExecCmd, pid, containerId)
 
 	if err = cmd.Run(); err != nil {
 		log.Errorf("Exec container %s error %v", containerId, err)

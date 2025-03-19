@@ -39,7 +39,7 @@ func ReleaseContainerIP(containerInfo *ContainerInfo) error {
 }
 
 func Connect(networkName string, containerInfo *ContainerInfo) (net.IP, error) {
-	log.Debugf("Set Container Network")
+	log.Debugf("++ Start Set Container[%s] Network", containerInfo.Id)
 	// 1. 加载当前记录的所有 network 信息
 	networks, err := network.LoadNetwork()
 	//fmt.Println(networks)
@@ -90,13 +90,14 @@ func Connect(networkName string, containerInfo *ContainerInfo) (net.IP, error) {
 		return ip, err
 	}
 
+	log.Infof("-- Finish Set Container[%s] Network", containerInfo.Id)
 	return ip, nil
 }
 
 // configPortMapping 配置端口映射
 func configPortMappping(ep *network.Endpoint) error {
 	var err error
-	log.Debugf("Start Set Contaienr PortMapping[%s]", ep.PortMapping)
+	log.Debugf("configPortMappping-Func Start Set Contaienr PortMapping[%s](if have setting-flag -p)", ep.PortMapping)
 	// 1. 遍历容器端口映射列表
 	for _, pm := range ep.PortMapping {
 		// 2. 分割成宿主机的端口和容器的端口
@@ -118,7 +119,7 @@ func configPortMappping(ep *network.Endpoint) error {
 			log.Errorf("Error Set iptables, Output: %v, Error: %s", output, err)
 			continue
 		}
-		log.Debugf("Finsh Set Container[%s] PortMapping Set HostPort[%s] to ContainerPort[%s], Cmd[%s]", ep.ID, portMapping[0], portMapping[1], cmd.String())
+		log.Debugf("configPortMappping-Func Finsh Set Container[%s] PortMapping Set HostPort[%s] to ContainerPort[%s], Cmd[%s]", ep.ID, portMapping[0], portMapping[1], cmd.String())
 	}
 	return err
 }

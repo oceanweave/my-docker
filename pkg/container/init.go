@@ -18,14 +18,15 @@ const fdIndex = 3
 	这是本容器执行的第一个进程
 	使用 mount 先去挂载 proc 文件系统，以便后面通过 ps 等系统命令去查看当前进程资源的情况
 */
-func RunContainerInitProcess(command string, args []string) error {
-	log.Infof("Init command: %s", command)
+func RunContainerInitProcess(commandArgs string, args []string) error {
+	log.Infof("++ Start Container-Init-Process Initing ... command-args: [%s] --(This Init-Process is Start By Run-Func-2, It spend some time to Run，so this log may show on somewhere) ", commandArgs)
 	// 此处涵盖了 mountProc 所以将其进行了注释
 	// a. 通过 privotRoot 将 pwd 获取的当前目录（merged 目录）作为容器进程根目录
 	// b. 重新挂载 proc 系统，使容器内进程只能看见自己启动的进程和线程，无法看到宿主机上其他进程和线程
 	setUpMount()
 	//mountProc()
-	// 从 pipe 中读取命令
+	// 从 pipe 中读取命令  没有命令传来时，会阻塞
+	log.Infof("Init-Process Wait for User-Short-Command From Anonymous-Pipe")
 	cmdArray := readUserCommand()
 	if len(cmdArray) == 0 {
 		return errors.New("run container get user command error, cmdArray is nil")
@@ -36,7 +37,8 @@ func RunContainerInitProcess(command string, args []string) error {
 		log.Errorf("Exec loop path error %v", err)
 		return err
 	}
-	log.Infof("Find path %s", cmdPath)
+	log.Infof("Init-Process Received User-Short-Command From Anonymous-Pipe")
+	log.Infof("Find the full command of User-Short-Command in Container-Rootfs,Command Full-Path[%s]", cmdPath)
 	/*
 		- 本函数最后的syscall.Exec是最为重要的一句黑魔法，正是这个系统调用实现了完成初始化动作并将用户进程运行起来的操作。
 		- 首先，使用 Docker 创建起来一个容器之后，会发现容器内的第一个程序，也就是 PID 为 1 的那个进程，是指定的前台进程。
@@ -48,6 +50,8 @@ func RunContainerInitProcess(command string, args []string) error {
 			它的作用是执行当前 filename 对应的程序,它会覆盖当前进程的镜像、数据和堆栈等信息，包括 PID，这些都会被将要运行的进程覆盖掉。
 		- 也就是说，调用这个方法，将用户指定的进程运行起来，把最初的 init 进程给替换掉，这样当进入到容器内部的时候，就会发现容器内的第一个程序就是我们指定的进程了。
 	*/
+	log.Infof("Next mydocker-Init-Process bin file will be Replaced to User-Full-Command[%s] By Operation[syscall.Exec]", cmdPath)
+	log.Infof("-- Finish Container Init and Set(Namespace/Rootfs/Cgroup/Network/PortMap/Volume)，Container is Running.")
 	if err := syscall.Exec(cmdPath, cmdArray[0:], os.Environ()); err != nil {
 		log.Errorf("RunContainerInitProcess exec:" + err.Error())
 	}
@@ -83,6 +87,7 @@ func readUserCommand() []string {
 		那么我们的 readPipe 就是 index6,读取时就要像这样：pipe := os.NewFile(uintptr(6), "pipe")
 	*/
 	pipe := os.NewFile(uintptr(fdIndex), "pipe")
+	// io.ReadAll 会尝试读取管道中的所有数据，直到遇到 EOF（文件结束符）。如果管道中没有数据，Read 系统调用会阻塞，等待数据到达
 	msg, err := io.ReadAll(pipe)
 	if err != nil {
 		log.Errorf("init read pipe error %v", err)

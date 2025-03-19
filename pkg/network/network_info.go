@@ -105,7 +105,7 @@ func LoadNetwork() (map[string]*Network, error) {
 		net := &Network{
 			Name: netName,
 		}
-		log.Debugf("Try load Network-%s-ConfigFile: %s", net.Name, netPath)
+		log.Debugf("Try Load Network-%s-ConfigFile: %s", net.Name, netPath)
 		// 调用前面介绍的 load 方法加载网络的配置信息
 		if err = net.load(netPath); err != nil {
 			log.Errorf("error load network: %s", err)

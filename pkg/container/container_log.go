@@ -9,6 +9,7 @@ import (
 
 func LogContainer(containerId string) {
 	logFilePath := fmt.Sprintf(ContainerInfoPathFormat, containerId) + LogFile
+	log.Debugf("Container[%s] Log-File-Path[%s]", containerId, logFilePath)
 	file, err := os.Open(logFilePath)
 	defer file.Close()
 	if err != nil {

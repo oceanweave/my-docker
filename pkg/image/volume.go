@@ -51,6 +51,7 @@ func mountVolume(mntPath, hostPath, containerPath string) {
 	if err := cmd.Run(); err != nil {
 		log.Errorf("mount volume failed. %v", err)
 	}
+	log.Debugf("mountVolume-Func Finsh Set HostPath[%s] BindMount to ContainerPath[%s] CMD[%s]", containerPathInHost, hostPath, cmd.String())
 }
 
 func umountVolume(mntPath, containerPath string) {

@@ -15,6 +15,7 @@ import (
 4. 若配置 volume，在 merged 目录中创建对应目录，将宿主机目录挂载到该目录上
 */
 func NewWorkSpace(imageName, containerId, volume string) {
+	log.Infof("NewWorkSpace-Func Build and Mount OverlayFS and Volume(if have setting-flag -v)")
 	createLowerLayer(imageName, containerId)
 	createUpperLayer(containerId)
 	mountOverlayFS(containerId)
@@ -28,6 +29,7 @@ func NewWorkSpace(imageName, containerId, volume string) {
 		mntPath := GetMergedDir(containerId)
 		mountVolume(mntPath, hostPath, containerPath)
 	}
+	log.Infof("NewWorkSpace-Func Finish Build and Mount OverlayFS and Volume(if have setting-flag -v)")
 }
 
 // createLower 将busybox作为overlayfs的lower层(也就是容器的只读层）
@@ -36,6 +38,7 @@ func createLowerLayer(imageName string, containerId string) {
 	// 把 busybox 作为 overlayfs 中的 lower 层
 	imageTarPath := GetImageDir(imageName)
 	lowerPath := GetLowerDir(containerId)
+	log.Debugf("Container[%s] CreateLowerLayer By Image: ImageName[%s], Decompress ImageTar[%s] to LowerLayer[%s]", containerId, imageName, imageTarPath, lowerPath)
 	// 判断镜像 tar 包是否存在
 	_, err := os.Stat(imageTarPath)
 	if err != nil {
@@ -97,7 +100,7 @@ func mountOverlayFS(containerId string) {
 	mergedPath := GetMergedDir(containerId)
 	//完整命令：mount -t overlay overlay -o lowerdir=/root/{containerID}/lower,upperdir=/root/{containerID}/upper,workdir=/root/{containerID}/work /root/{containerID}/merged
 	cmd := exec.Command("mount", "-t", "overlay", "overlay", "-o", dirs, mergedPath)
-	log.Infof("mount overlayfs: [%s]", cmd.String())
+	log.Debugf("Container[%s] mount Overlayfs: [%s]", containerId, cmd.String())
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
@@ -113,9 +116,10 @@ func mountOverlayFS(containerId string) {
 3. 删除 overlayfs 相关目录（upper、lower、work、merged、containerId 目录）
 */
 func DeleteWorkSpace(containerId string, volume string) {
-	log.Debugf("Remove container overlayfs mountPoint and writeLayer.")
+	log.Debugf("DeleteWorkSpace-Func Start Remove Container[%s] MountPoint(Umount volume and overlayfs) and WriteLayer(overlayfs Dirs lower/upper/work/merged).", containerId)
 	// 如果指定了 volume 则需要 umount volume
 	// 重点 Note： 一定要先 umount volume，然后再删除目录，否则由于 bind mount 存在，删除临时目录会导致 volume 目录中的数据丢失
+	log.Debugf("DeleteWorkSpace-Func must First Umount Volume-MountPoint Before Umount Overlayfs-MountPoint（otherwise will delete volume-host-dir-files）")
 	if volume != "" {
 		_, containerPath, err := volumeUrlExtract(volume)
 		if err != nil {
@@ -127,6 +131,7 @@ func DeleteWorkSpace(containerId string, volume string) {
 	}
 	umountOverlayFS(containerId)
 	DeleteDirs(containerId)
+	log.Debugf("DeleteWorkSpace-Func Finsh Remove Container[%s] MountPoint(Unmount volume and overlayfs) and WriteLayer(overlayfs Dirs lower/upper/work/merged).", containerId)
 }
 
 func umountOverlayFS(containerId string) {

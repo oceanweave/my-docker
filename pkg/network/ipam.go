@@ -47,7 +47,7 @@ func (ipam *IPAM) load() error {
 		// 文件不存在的错误，返回的 error 为 nil
 		return nil
 	}
-	log.Debugf("Try load Network-IPAM-ConfigFile: %s", ipam.SubnetAllocatorPath)
+	log.Debugf("Try Load Network-IPAM-ConfigFile: %s", ipam.SubnetAllocatorPath)
 	// 读取文件，加载配置信息
 	subnetConfigFile, err := os.Open(ipam.SubnetAllocatorPath)
 	if err != nil {
@@ -135,7 +135,7 @@ func (ipam *IPAM) dump() error {
 */
 // Allocate 在网段中分配一个可用的 IP 地址
 func (ipam *IPAM) Allocate(subnet *net.IPNet) (ip net.IP, err error) {
-	log.Debugf("Allocate IP ... ...")
+	log.Debugf("++ Start Allocate IP ... ...")
 	// 存放网段中地址分配信息的数组
 	ipam.Subnets = &map[string]string{}
 
@@ -212,13 +212,13 @@ func (ipam *IPAM) Allocate(subnet *net.IPNet) (ip net.IP, err error) {
 	if err != nil {
 		log.Error("Allocate: dump ipam error", err)
 	}
-	log.Debugf("Allocate IP Finish —— subnet: %s, get free ip: %s", subnet.String(), ip)
+	log.Infof("-- Allocate IP Finish —— subnet: %s, get free ip: %s", subnet.String(), ip)
 	return
 }
 
 // Release 从 subnet 解析出真正的网段， ipaddr 为待释放的 ip
 func (ipam *IPAM) Release(subnet *net.IPNet, ipaddr *net.IP) error {
-	log.Debugf("Release IP ... ...")
+	log.Debugf("++ Start Release IP[%s] ... ...", ipaddr.String())
 	ipam.Subnets = &map[string]string{}
 	// 从 subnet 解析出真正的网段， subnet 为 192.168.0.1/24 此处解析出的 subnet 为 192.168.0.1/24
 	_, subnet, _ = net.ParseCIDR(subnet.String())
@@ -244,6 +244,6 @@ func (ipam *IPAM) Release(subnet *net.IPNet, ipaddr *net.IP) error {
 	if err != nil {
 		log.Error("Allocate: dump ipam error", err)
 	}
-	log.Debugf("Release IP Finish —— subnet: %s, release ip: %s", subnet.String(), ipaddr.String())
+	log.Infof("-- Finish Release IP —— subnet: %s, release ip: %s", subnet.String(), ipaddr.String())
 	return nil
 }

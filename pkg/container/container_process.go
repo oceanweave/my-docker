@@ -42,6 +42,7 @@ func NewParentProcess(tty bool, volume string, containerId string, imageName str
 		Cloneflags: syscall.CLONE_NEWUTS | syscall.CLONE_NEWPID | syscall.CLONE_NEWNS |
 			syscall.CLONE_NEWNET | syscall.CLONE_NEWIPC,
 	}
+	log.Infof("NewParentProcess-Func Buid Init-Command[%s] and Set Init-Namespace-Attr（UTS/PID/NS(MOUNT)/NET/IPC, no set USER)", cmd.String())
 	// 若 mydocker run 配置 -it 参数，会开启此部分，用于将容器进程的输入输出展示到终端上
 	if tty {
 		cmd.Stdin = os.Stdin
@@ -60,18 +61,23 @@ func NewParentProcess(tty bool, volume string, containerId string, imageName str
 			log.Errorf("NewParentProcess create file %s error %v", stdLogFile, err)
 			return nil, nil
 		}
+		log.Debugf("Detach Runing Container[%s] Save Stdout and Stderr to LogFile[%s]", containerId, stdLogFile)
 		cmd.Stdout = stdLogFile
 		cmd.Stderr = stdLogFile
 	}
 	// 默认 0 标准输入  1 标准输出  2 标准错误
 	// 因此此处 3——匿名管道
 	cmd.ExtraFiles = []*os.File{readPipe}
+	log.Infof("NewParentProcess-Func Set Anonymous-Pipe to Init-Command")
 
 	// 为容器创建 overlayfs 目录，挂载镜像文件等，同时创建目录，将 -v 参数指定的宿主机目录挂载到容器内
 	image.NewWorkSpace(imageName, containerId, volume)
 	// mydocker init 会通过 pwd 获取该路径，通过 privotRoot 将容器进程的根目录改为当前目录
+	log.Debugf("NewParentProcess-Func Set Overlayfs-Merged-Path[%s] for Init-Command(will use for PivotRootfs later)", image.GetMergedDir(containerId))
 	cmd.Dir = image.GetMergedDir(containerId)
+	// 获取当前宿主机的环境变量，配置到容器中
 	cmd.Env = append(os.Environ(), envSlice...)
+	log.Infof("NewParentProcess-Func Set Envs[%s] to Init-Command(if have setting-flag -e)", envSlice)
 
 	return cmd, writePipe
 }

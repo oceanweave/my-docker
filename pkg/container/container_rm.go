@@ -33,6 +33,7 @@ func RemoveContainer(containerId string, force bool) {
 }
 
 func CleanStoppedContainerResource(containerId string) {
+
 	// 1. 根据容器 ID 查询容器信息
 	containerInfo, err := getInfoByContainerId(containerId)
 	if err != nil {
@@ -42,18 +43,22 @@ func CleanStoppedContainerResource(containerId string) {
 	volume := containerInfo.Volume
 
 	// 2. 清理容器的残留资源
-	log.Infof("Staring Container[%s] Resource-Cleanning ...", containerInfo.Id)
+	log.Infof("++ Start Container[%s] Resource-Cleanning ...", containerInfo.Id)
 	// 2.1 清理 cgroup 目录
+	log.Infof("CleanStoppedContainerResource-Func-1 Remove Cgroup-Resource")
 	cgroupManager := containerInfo.CgroupManager
 	cgroupManager.Destroy()
 	// 2.2 清理 volume 目录和 overlayfs 文件目录
 	// 现 umount volume 目录，避免删除 overlayfs 目录时将宿主机文件删除
+	log.Infof("CleanStoppedContainerResource-Func-2 Remove Overlayfs and Volume")
 	image.DeleteWorkSpace(containerId, volume)
 	// 2.3 清理宿主机文件记录的 Container 信息
+	log.Infof("CleanStoppedContainerResource-Func-3 Remove Host-ContainerInfo-Json-file")
 	DeleteContainerInfo(containerId)
 	// 2.4 释放容器 IP
 	if containerInfo.IP != "" {
+		log.Infof("CleanStoppedContainerResource-Func-4 Release Container-IP")
 		ReleaseContainerIP(containerInfo)
 	}
-	log.Infof("Finsh Container[%s] Resource Clean.", containerInfo.Id)
+	log.Infof("-- Finsh Container[%s] Resource Clean.", containerInfo.Id)
 }

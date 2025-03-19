@@ -23,11 +23,13 @@ func StopContainer(containerId string) {
 		log.Errorf("Convert pid from string to int error %v", err)
 		return
 	}
+	log.Infof("1. StopContainer-Func get ContainerInfo ContainerID[%s]-PID[%d]", containerId, pidInt)
 	// 2. 发送 SIGTERM 信号
 	if err = syscall.Kill(pidInt, syscall.SIGTERM); err != nil {
 		log.Errorf("Stop contaienr %s error %v", containerId, err)
 		return
 	}
+	log.Infof("2. StopContainer-Func send [syscall.SIGTERM] to kill Container-Process-PID[%d]", pidInt)
 	// 3. 修改容器信息，将容器置为 STOP 状态，并清空 PID
 	containerInfo.Status = STOP
 	containerInfo.Pid = " "
@@ -42,5 +44,6 @@ func StopContainer(containerId string) {
 	if err := os.WriteFile(configFilePath, newContentBytes, constant.Perm0622); err != nil {
 		log.Errorf("Write file %s error: %v", configFilePath, err)
 	}
-	log.Infof("Finsh stop container-[%s]", containerId)
+	log.Infof("3. StopContainer-Func change Container-Status to [STOP] and Remov [PID] info, Save the ContainerInfo to [%s]", configFilePath)
+	log.Infof("4. StopContainer-Func Finsh Stop Container-[%s]", containerId)
 }

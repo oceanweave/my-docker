@@ -86,7 +86,6 @@ var RunCommand = cli.Command{
 			CpuSet:      ctx.String("cpuset"),
 			CpuCfsQuota: ctx.Int("cpu"),
 		}
-		log.Info("resConf:", resConf)
 
 		// 获取容器的挂载卷配置
 		volume := ctx.String("v")
@@ -100,7 +99,7 @@ var RunCommand = cli.Command{
 		// 获取需配置的网络信息和端口信息
 		network := ctx.String("net")
 		portMapping := ctx.StringSlice("p")
-		
+
 		// 创建容器
 		container.Run(tty, cmdArray, resConf, volume, containerName, imageName, envSlice, network, portMapping)
 		return nil
@@ -115,9 +114,7 @@ var InitCommand = cli.Command{
 		2. 执行容器初始化操作
 	*/
 	Action: func(ctx *cli.Context) error {
-		log.Infof("init come on")
 		cmd := ctx.Args().Get(0)
-		log.Infof("command: %s", cmd)
 		err := container.RunContainerInitProcess(cmd, nil)
 		return err
 	},

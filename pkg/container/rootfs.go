@@ -26,18 +26,18 @@ func setUpMount() {
 		log.Errorf("Get current location error %v", err)
 		return
 	}
-	log.Infof("Current location is %s", pwd)
 
 	// systemd 加入linux之后, mount namespace 就变成 shared by default, 所以你必须显示
 	// 声明你要这个新的mount namespace独立。
 	// 如果不先做 private mount，会导致挂载事件外泄，后续执行 pivotRoot 会出现 invalid argument 错误
 	err = syscall.Mount("", "/", "", syscall.MS_PRIVATE|syscall.MS_REC, "")
 
-	err = privotRoot(pwd)
+	err = pivotRoot(pwd)
 	if err != nil {
-		log.Errorf("privotRoot failed, detail: %v", err)
+		log.Errorf("pivotRoot failed, detail: %v", err)
 		return
 	}
+	log.Infof("Init-Process setUpMount-Func Finish pivotRoot,Change Container Rootfs to Path[%s]", pwd)
 
 	// mount /proc
 	/*
@@ -62,9 +62,10 @@ func setUpMount() {
 	// 挂载 tmpfs 到 /dev 可减少对宿主机的依赖，提高隔离性
 	// syscall.MS_STRICTATIME 是一个挂载标志（mount flag），用于控制 文件访问时间（atime） 的更新策略。它的作用是 强制每次访问文件时都更新 atime（访问时间），即使 relatime 机制默认会优化掉某些更新
 	syscall.Mount("tmpfs", "/dev", "tmpfs", syscall.MS_NOSUID|syscall.MS_STRICTATIME, "mode=755")
+	log.Infof("Init-Process setUpMount-Func Finish Mount[/proc、/dev] in Container，Avoid change Host-File")
 }
 
-func privotRoot(newRoot string) error {
+func pivotRoot(newRoot string) error {
 	/**
 	  NOTE：PivotRoot调用有限制，newRoot和oldRoot不能在同一个文件系统下。
 	  因此，为了使当前root的老root和新root不在同一个文件系统下，这里把root重新mount了一次。
